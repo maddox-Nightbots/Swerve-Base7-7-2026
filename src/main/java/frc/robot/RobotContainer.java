@@ -23,17 +23,12 @@ public class RobotContainer {
 
   private final SendableChooser<Command> autoChooser;
 
-<<<<<<< Updated upstream
-  //OLED Pong - Fun extra, disabled if causing issues
-  // Set ENABLE_OLED_PONG to false to completely disable
-  private static final boolean ENABLE_OLED_PONG = true;
-  private final OLEDPongSubsystem pongSubsystem = ENABLE_OLED_PONG ? new OLEDPongSubsystem() : null;
-=======
+
     // OLED Pong - Fun extra, disabled if causing issues
     // Set ENABLE_OLED_PONG to false to completely disable
     private static final boolean ENABLE_OLED_PONG = true;
     private final OLEDPongSubsystem pongSubsystem = ENABLE_OLED_PONG ? new OLEDPongSubsystem() : null;
->>>>>>> Stashed changes
+
 
   // 2. CONTROLLERS: Defining the Inputs
   // CommandXboxController is a wrapper that makes it easy to link buttons to commands.
