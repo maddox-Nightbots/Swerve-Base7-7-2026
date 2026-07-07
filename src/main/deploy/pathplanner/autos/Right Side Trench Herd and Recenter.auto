@@ -1,0 +1,31 @@
+{
+  "version": "2025.0",
+  "command": {
+    "type": "sequential",
+    "data": {
+      "commands": [
+        {
+          "type": "path",
+          "data": {
+            "pathName": "Right Side Trench Drives to Center and Angles"
+          }
+        },
+        {
+          "type": "path",
+          "data": {
+            "pathName": "Right Side Trench Herd Balls"
+          }
+        },
+        {
+          "type": "path",
+          "data": {
+            "pathName": "Right Side ReCenter after Herd"
+          }
+        }
+      ]
+    }
+  },
+  "resetOdom": true,
+  "folder": null,
+  "choreoAuto": false
+}
