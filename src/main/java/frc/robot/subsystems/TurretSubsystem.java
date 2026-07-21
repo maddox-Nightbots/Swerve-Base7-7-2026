@@ -5,6 +5,7 @@ import com.revrobotics.spark.SparkClosedLoopController;
 import com.revrobotics.spark.SparkLowLevel.MotorType;
 import com.revrobotics.spark.SparkMax;
 import com.revrobotics.spark.config.SparkMaxConfig;
+import org.photonvision.*;
 
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants.ShooterConstants;
@@ -39,7 +40,7 @@ public class TurretSubsystem extends SubsystemBase{
         controllerTurn.setSetpoint(angle * ShooterConstants.gearRatio, ControlType.kPosition);
     }
 
-    public Command TargetHub(){
+    public Command TargetHub(PhotonTrackedTarget target){
         return(
             this.run(()->{
                 
