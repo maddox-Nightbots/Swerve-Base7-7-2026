@@ -20,5 +20,14 @@ public final class Constants {
     public static final int kOperatorControllerPort = 1;
     public static final double DEADBAND = 0.15;
   }
+
+  public static class ShooterConstants {
+    // TODO: set to the real CAN ID of the shooter flywheel SparkFlex.
+    public static final int shooterMotorLeftID = 0;
+    // TODO: set to the real PWM channels for the hood actuator servos.
+    public static final int actuatorLeftServo = 0;
+    public static final int actuatorRightServo = 1;
+  }
+
   public static final double maxSpeed = 4.7;
 }

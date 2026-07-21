@@ -38,15 +38,15 @@ public class ShooterSubsystem extends SubsystemBase {
 
         
 
-        SparkFlexConfig ShooterConstants = new SparkFlexConfig();
-        ShooterConstants.inverted(false);
-        ShooterConstants.smartCurrentLimit(40);
-        ShooterConstants.closedLoop
+        SparkFlexConfig shooterConfig = new SparkFlexConfig();
+        shooterConfig.inverted(false);
+        shooterConfig.smartCurrentLimit(40);
+        shooterConfig.closedLoop
         .p(0.01)
         .i(0.0)
         .d(0.0);
 
-        SparkFlexConfig ShooterLeftConfig = ShooterConstants;
+        SparkFlexConfig ShooterLeftConfig = shooterConfig;
         ShooterLeftConfig.inverted(false);
 
         ShooterMotorLeft.configure(ShooterLeftConfig, com.revrobotics.ResetMode.kResetSafeParameters,
