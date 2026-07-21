@@ -10,6 +10,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Send message to Discord
+        # Only run when the webhook secret actually exists. Without this guard the
+        # action errors out ("DISCORD_WEBHOOK is not defined") and fails the check.
+        if: ${{ secrets.DISCORD_WEBHOOK != '' }}
         uses: Ilshidur/action-discord@0.4.0
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        with:
+          args: >-
+            📦 New push to `${{ github.repository }}` on `${{ github.ref_name }}`
+            by **${{ github.actor }}**:
+            ${{ github.event.head_commit.message }}
+            (${{ github.event.head_commit.url }})
