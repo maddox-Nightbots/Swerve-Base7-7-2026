@@ -4,33 +4,12 @@ on:
   push:
     branches:
       - "**"
-  pull_request:
-    types: [opened, reopened, closed]
 
 jobs:
   notify:
     runs-on: ubuntu-latest
-    # Map the secret to a job env var here. The `secrets` context is NOT allowed in
-    # step `if:` conditions, but `env` IS — so this is how we can skip when it's unset.
-    env:
-      DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
     steps:
-      - name: Notify on push
-        # Skip cleanly (job stays green) when no webhook is configured.
-        if: ${{ github.event_name == 'push' && env.DISCORD_WEBHOOK != '' }}
+      - name: Send message to Discord
         uses: Ilshidur/action-discord@0.4.0
-        with:
-          args: >-
-            📦 New push to `${{ github.repository }}` on `${{ github.ref_name }}`
-            by **${{ github.actor }}**:
-            ${{ github.event.head_commit.message }}
-            (${{ github.event.head_commit.url }})
-
-      - name: Notify on pull request
-        if: ${{ github.event_name == 'pull_request' && env.DISCORD_WEBHOOK != '' }}
-        uses: Ilshidur/action-discord@0.4.0
-        with:
-          args: >-
-            🔀 PR #${{ github.event.pull_request.number }} ${{ github.event.action }}
-            by **${{ github.actor }}**: ${{ github.event.pull_request.title }}
-            (${{ github.event.pull_request.html_url }})
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
