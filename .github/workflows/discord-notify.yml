@@ -4,12 +4,34 @@ on:
   push:
     branches:
       - "**"
+  pull_request:
+    types: [opened, reopened, closed]
 
 jobs:
   notify:
     runs-on: ubuntu-latest
     steps:
-      - name: Send message to Discord
+      - name: Notify on push
+        # Only run when the webhook secret actually exists. Without this guard the
+        # action errors out ("DISCORD_WEBHOOK is not defined") and fails the check.
+        if: ${{ github.event_name == 'push' && secrets.DISCORD_WEBHOOK != '' }}
         uses: Ilshidur/action-discord@0.4.0
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        with:
+          args: >-
+            📦 New push to `${{ github.repository }}` on `${{ github.ref_name }}`
+            by **${{ github.actor }}**:
+            ${{ github.event.head_commit.message }}
+            (${{ github.event.head_commit.url }})
+
+      - name: Notify on pull request
+        if: ${{ github.event_name == 'pull_request' && secrets.DISCORD_WEBHOOK != '' }}
+        uses: Ilshidur/action-discord@0.4.0
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        with:
+          args: >-
+            🔀 PR #${{ github.event.pull_request.number }} ${{ github.event.action }}
+            by **${{ github.actor }}**: ${{ github.event.pull_request.title }}
+            (${{ github.event.pull_request.html_url }})
