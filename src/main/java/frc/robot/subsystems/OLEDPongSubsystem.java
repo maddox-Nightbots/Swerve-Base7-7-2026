@@ -1,28 +1,17 @@
-<<<<<<< Updated upstream
 // Copyright (c) FIRST and other WPILib contributors.
 // Open Source Software; you can modify and/or share it under the terms of
 // the WPILib BSD license file in the root directory of this project.
 
 package frc.robot.subsystems;
 
-import edu.wpi.first.wpilibj.I2C;
-import edu.wpi.first.wpilibj.DriverStation;
-import edu.wpi.first.wpilibj2.command.SubsystemBase;
-=======
-package frc.robot.subsystems;
-
->>>>>>> Stashed changes
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-<<<<<<< Updated upstream
-=======
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.I2C;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
->>>>>>> Stashed changes
 /**
  * OLED Pong Subsystem - Plays Pong with itself on a 128x64 SSD1306 OLED display
  * Connected to RoboRIO onboard I2C port (GND, 3.3V, SDA, SCL)
