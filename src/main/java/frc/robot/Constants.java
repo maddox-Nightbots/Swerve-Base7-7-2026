@@ -28,6 +28,15 @@ public final class Constants {
     public static final double DEADBAND = 0.15;
   }
 
+  public static class ShooterConstants {
+   
+    public static final int actuatorLeftServo = 0;
+    public static final int actuatorRightServo = 0;
+    public static final int shooterMotorLeftID = 0;
+    public static final int TurnMotorID = 0;
+    public static final double gearRatio = 0;
+
+  }
   /**
    * Everything the PhotonVision-based {@code VisionSubsystem} needs.
    * This robot runs TWO cameras; each one has its own name and mounting position.
