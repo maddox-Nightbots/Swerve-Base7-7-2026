@@ -73,4 +73,12 @@ public final class Constants {
   }
 
   public static final double maxSpeed = 4.7;
+
+  public static class IntakeConstants {
+
+    public static final double gearRatio = 5;
+    public static final double IntakeDownPosition = 1;
+    public static final double IntakeUpPosition = 0;
+
+  }
 }
