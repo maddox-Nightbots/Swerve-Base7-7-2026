@@ -37,8 +37,8 @@ public final class Constants {
     // These MUST exactly match the camera "nicknames" you set in the PhotonVision web UI
     // (http://photonvision.local:5800). If they don't match, PhotonVision returns no data.
     // TODO: replace with the real nicknames of your two cameras.
-    public static final String kCameraLeftName = "left-cam";
-    public static final String kCameraRightName = "right-cam";
+    public static final String kCameraLeftName = "Thriftyfront";
+    public static final String kCameraRightName = "ThriftyTurret";
 
     // --- CAMERA MOUNTING (robot-to-camera transforms) ---
     // Where each camera sits RELATIVE TO THE ROBOT'S CENTER.
