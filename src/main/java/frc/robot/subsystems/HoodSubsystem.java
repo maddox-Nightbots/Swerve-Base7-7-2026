@@ -1,9 +1,5 @@
 package frc.robot.subsystems;
 
-import java.io.File;
-import java.io.IOException;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import edu.wpi.first.math.MathUtil;
 import static edu.wpi.first.units.Units.Millimeters;
@@ -13,18 +9,17 @@ import static edu.wpi.first.units.Units.Value;
 import edu.wpi.first.units.measure.Distance;
 import edu.wpi.first.units.measure.LinearVelocity;
 import edu.wpi.first.units.measure.Time;
-import edu.wpi.first.wpilibj.Filesystem;
 import edu.wpi.first.wpilibj.Servo;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import frc.robot.Constants.ShooterConstants;
 
 public final class HoodSubsystem extends SubsystemBase{
     private final Servo actuatorLeft, actuatorRight;
 
     @SuppressWarnings("FieldMayBeFinal")
-    private ShooterConfig ShooterConfig;
 
     private double currentPosition = 0.5;
     private double targetPosition = 0.5;
@@ -40,15 +35,8 @@ public final class HoodSubsystem extends SubsystemBase{
 
     public HoodSubsystem() 
     {
-        File directory = new File(Filesystem.getDeployDirectory(), "shooter.json");
-        try {
-            ShooterConfig = new ObjectMapper().readValue(directory, ShooterConfig.class);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-
-        actuatorLeft = new Servo(ShooterConfig.actuatorLeftServo);
-        actuatorRight = new Servo(ShooterConfig.actuatorRightServo);
+        actuatorLeft = new Servo(ShooterConstants.actuatorLeftServo);
+        actuatorRight = new Servo(ShooterConstants.actuatorRightServo);
 
         actuatorLeft.setBoundsMicroseconds(2000, 1800, 1500, 1200, 1000);
         actuatorRight.setBoundsMicroseconds(2000, 1800, 1500, 1200, 1000);

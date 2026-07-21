@@ -28,22 +28,18 @@ public class Shoot extends Command {
     // appropriate values for intaking
     @Override
     public void initialize() {
-        ShooterState shot = new ShooterState(1500,0.5); //values are in here for testing for the tree map
+        ShooterState shot = new ShooterState(2500,0.5); //values are in here for testing for the tree map
         ShootSubsystem.setShooterRPM(shot.rpm);
         HoodSubsystem.setPosition(shot.hoodPosition);
-        ShootSubsystem.setFeeder(0.66);
-        ShootSubsystem.setIndexer(0.66);
     }
 
     // Called every time the scheduler runs while the command is scheduled. This
     // command doesn't require updating any values while running
     @Override
     public void execute() {
-        ShooterState shot = new ShooterState(1500,0.5); //values are in here for testing for the tree map
+        ShooterState shot = new ShooterState(2500,0.5); //values are in here for testing for the tree map
         ShootSubsystem.setShooterRPM(shot.rpm);
         HoodSubsystem.setPosition(shot.hoodPosition);
-        ShootSubsystem.setFeeder(0.66);
-        ShootSubsystem.setIndexer(0.66);
     }
 
     // Called once the command ends or is interrupted. Stop the rollers
