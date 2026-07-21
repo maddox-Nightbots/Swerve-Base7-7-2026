@@ -9,7 +9,6 @@ import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import frc.robot.Constants.OperatorConstants;
 import frc.robot.subsystems.OLEDPongSubsystem;
 import frc.robot.subsystems.SwerveSubsystem;
-import frc.robot.subsystems.VisionSubsystem;
 import swervelib.SwerveInputStream;
 
 /**
@@ -21,11 +20,6 @@ public class RobotContainer {
   // 1. SUBSYSTEMS: Creating the "Body Parts"
   // We create an instance of SwerveSubsystem so we can tell the drivetrain what to do.
   private final SwerveSubsystem m_swerveSubsystem = new SwerveSubsystem();
-
-  // VisionSubsystem is the robot's "eyes" (PhotonVision, two cameras). It feeds
-  // AprilTag position corrections into the swerve drive, so it needs the swerve
-  // subsystem. This replaces the old Limelight vision that used to live in swerve.
-  private final VisionSubsystem m_visionSubsystem = new VisionSubsystem(m_swerveSubsystem);
 
   private final SendableChooser<Command> autoChooser;
 
@@ -44,7 +38,7 @@ public class RobotContainer {
   public RobotContainer() {
     // Register Named Commands for PathPlanner
     // This allows you to drag a "Wait and Align" event into your path in the GUI.
-    com.pathplanner.lib.auto.NamedCommands.registerCommand("VisionAlign", m_visionSubsystem.visionAlignCommand());
+    com.pathplanner.lib.auto.NamedCommands.registerCommand("VisionAlign", m_swerveSubsystem.visionAlignCommand());
 
     autoChooser = AutoBuilder.buildAutoChooser();
     SmartDashboard.putData("Auto Chooser", autoChooser);
@@ -57,7 +51,7 @@ public class RobotContainer {
    * It uses Vision (Limelight) if a tag is visible for maximum precision.
    */
   public void setupTeleopHeading() {
-    m_visionSubsystem.updateHeadingWithVision();
+    m_swerveSubsystem.updateHeadingWithVision();
   }
 
   /**
