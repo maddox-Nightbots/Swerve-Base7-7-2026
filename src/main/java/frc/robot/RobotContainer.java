@@ -46,7 +46,7 @@ public class RobotContainer {
   public RobotContainer() {
     // Register Named Commands for PathPlanner
     // This allows you to drag a "Wait and Align" event into your path in the GUI.
-    com.pathplanner.lib.auto.NamedCommands.registerCommand("VisionAlign", m_swerveSubsystem.visionAlignCommand());
+    com.pathplanner.lib.auto.NamedCommands.registerCommand("VisionAlign", m_VisionSubsystem.visionAlignCommand());
 
     autoChooser = AutoBuilder.buildAutoChooser();
     SmartDashboard.putData("Auto Chooser", autoChooser);
@@ -59,7 +59,7 @@ public class RobotContainer {
    * It uses Vision (Limelight) if a tag is visible for maximum precision.
    */
   public void setupTeleopHeading() {
-    m_swerveSubsystem.updateHeadingWithVision();
+    m_VisionSubsystem.updateHeadingWithVision();
   }
 
   /**
@@ -109,7 +109,10 @@ public class RobotContainer {
     // While the driver holds B, the wheels turn into an 'X' shape so the robot cannot be pushed.
     m_driverController.b().whileTrue(m_swerveSubsystem.lockPoseCommand());
 
-    m_driverController.a().whileTrue(turretAim(m_TurretSubsystem, ))
+    // A BUTTON: Turret aim. While held, the turret tracks the hub AprilTag using live
+    // targets from the TURRET camera (getYaw() is relative to that camera, so we must
+    // not use the combined multi-camera list). Releasing stops the turret.
+    m_driverController.a().whileTrue(new turretAim(m_TurretSubsystem, m_VisionSubsystem::getTurretCameraTargets));
   }
 
   /**

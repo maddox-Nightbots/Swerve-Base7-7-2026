@@ -63,11 +63,19 @@ public class VisionSubsystem extends SubsystemBase {
     final String name;
     final PhotonCamera camera;
     final PhotonPoseEstimator estimator;
+    // True only for cameras rigidly bolted to the chassis. A camera on the turret
+    // moves as the turret swivels, so its fixed robot-to-camera transform is wrong
+    // for global pose — those cameras are used for aiming only, never odometry.
+    final boolean contributesToPose;
+    // The AprilTag targets from this camera's most recent frame. Updated every loop
+    // so commands (e.g. turret aim) can read fresh detections.
+    List<PhotonTrackedTarget> latestTargets = new ArrayList<>();
 
-    CameraUnit(String name, PhotonCamera camera, PhotonPoseEstimator estimator) {
+    CameraUnit(String name, PhotonCamera camera, PhotonPoseEstimator estimator, boolean contributesToPose) {
       this.name = name;
       this.camera = camera;
       this.estimator = estimator;
+      this.contributesToPose = contributesToPose;
     }
   }
 
@@ -81,9 +89,10 @@ public class VisionSubsystem extends SubsystemBase {
     // Load the current season's AprilTag field layout that ships with WPILib.
     fieldLayout = AprilTagFieldLayout.loadField(AprilTagFields.kDefaultField);
 
-    // Register both cameras. Adding a third camera later is just one more line here.
-    addCamera(VisionConstants.kCameraLeftName, VisionConstants.kRobotToCameraLeft);
-    addCamera(VisionConstants.kCameraRightName, VisionConstants.kRobotToCameraRight);
+    // Front camera is fixed to the chassis -> contributes to pose estimation.
+    addCamera(VisionConstants.kCameraLeftName, VisionConstants.kRobotToCameraLeft, true);
+    // Turret camera moves with the turret -> aiming only, EXCLUDED from pose estimation.
+    addCamera(VisionConstants.kCameraRightName, VisionConstants.kRobotToCameraRight, false);
   }
 
   /**
@@ -92,7 +101,7 @@ public class VisionSubsystem extends SubsystemBase {
    * @param name          the PhotonVision nickname of the camera
    * @param robotToCamera where the camera is mounted relative to robot center
    */
-  private void addCamera(String name, Transform3d robotToCamera) {
+  private void addCamera(String name, Transform3d robotToCamera, boolean contributesToPose) {
     PhotonCamera camera = new PhotonCamera(name);
 
     // MULTI_TAG_PNP_ON_COPROCESSOR is the best strategy: when the camera sees 2+ tags,
@@ -102,7 +111,7 @@ public class VisionSubsystem extends SubsystemBase {
         fieldLayout, PoseStrategy.MULTI_TAG_PNP_ON_COPROCESSOR, robotToCamera);
     estimator.setMultiTagFallbackStrategy(PoseStrategy.LOWEST_AMBIGUITY);
 
-    cameras.add(new CameraUnit(name, camera, estimator));
+    cameras.add(new CameraUnit(name, camera, estimator, contributesToPose));
   }
 
   /**
@@ -118,38 +127,45 @@ public class VisionSubsystem extends SubsystemBase {
       // Processing all of them (instead of just the newest) keeps timestamps honest.
       List<PhotonPipelineResult> results = unit.camera.getAllUnreadResults();
 
-      for (PhotonPipelineResult result : results) {
-        Optional<EstimatedRobotPose> maybeEstimate = unit.estimator.update(result);
-        if (maybeEstimate.isEmpty()) {
-          continue; // No usable tags in this frame.
+      // Pose estimation: ONLY chassis-fixed cameras. The turret camera is skipped here
+      // (its transform isn't valid while the turret rotates) but still tracks targets
+      // below for aiming.
+      if (unit.contributesToPose) {
+        for (PhotonPipelineResult result : results) {
+          Optional<EstimatedRobotPose> maybeEstimate = unit.estimator.update(result);
+          if (maybeEstimate.isEmpty()) {
+            continue; // No usable tags in this frame.
+          }
+
+          EstimatedRobotPose estimate = maybeEstimate.get();
+          int tagCount = result.getTargets().size();
+          double avgDistance = averageTagDistanceMeters(result);
+
+          // Throw out estimates from tags that are too far away — they get jittery
+          // and can yank the robot's position around.
+          if (avgDistance > VisionConstants.kMaxAverageTagDistanceMeters) {
+            continue;
+          }
+
+          Pose2d visionPose = estimate.estimatedPose.toPose2d();
+          Matrix<N3, N1> stdDevs = computeStdDevs(tagCount, avgDistance);
+
+          // Hand the position to the swerve pose estimator. The stdDevs tell it how
+          // much to trust us versus the wheel odometry.
+          swerveDrive.addVisionMeasurement(visionPose, estimate.timestampSeconds, stdDevs);
+
+          lastVisionPose = visionPose;
+          lastVisionTimestamp = estimate.timestampSeconds;
+          acceptedThisLoop++;
         }
-
-        EstimatedRobotPose estimate = maybeEstimate.get();
-        int tagCount = result.getTargets().size();
-        double avgDistance = averageTagDistanceMeters(result);
-
-        // Throw out estimates from tags that are too far away — they get jittery
-        // and can yank the robot's position around.
-        if (avgDistance > VisionConstants.kMaxAverageTagDistanceMeters) {
-          continue;
-        }
-
-        Pose2d visionPose = estimate.estimatedPose.toPose2d();
-        Matrix<N3, N1> stdDevs = computeStdDevs(tagCount, avgDistance);
-
-        // Hand the position to the swerve pose estimator. The stdDevs tell it how
-        // much to trust us versus the wheel odometry.
-        swerveDrive.addVisionMeasurement(visionPose, estimate.timestampSeconds, stdDevs);
-
-        lastVisionPose = visionPose;
-        lastVisionTimestamp = estimate.timestampSeconds;
-        acceptedThisLoop++;
       }
 
       // Publish per-camera targeting data from the newest frame we received this loop.
       // (Last element of getAllUnreadResults() is the most recent.)
       if (!results.isEmpty()) {
-        publishTargetingData(unit.name, results.get(results.size() - 1));
+        PhotonPipelineResult newest = results.get(results.size() - 1);
+        unit.latestTargets = newest.getTargets();
+        publishTargetingData(unit.name, newest);
       }
     }
 
@@ -270,5 +286,47 @@ public class VisionSubsystem extends SubsystemBase {
    */
   public Optional<Pose2d> getLastVisionPose() {
     return Optional.ofNullable(lastVisionPose);
+  }
+
+  /**
+   * Every AprilTag target currently seen, combined across all cameras into one list.
+   * Useful for "is this tag visible anywhere" checks — but NOT for aiming, because a
+   * target's yaw is measured relative to the camera that saw it, so combining cameras
+   * mixes reference frames.
+   *
+   * @return the combined target list (empty if nothing is in view).
+   */
+  public List<PhotonTrackedTarget> getLatestTargets() {
+    List<PhotonTrackedTarget> all = new ArrayList<>();
+    for (CameraUnit unit : cameras) {
+      all.addAll(unit.latestTargets);
+    }
+    return all;
+  }
+
+  /**
+   * Latest AprilTag targets from ONE specific camera, by its PhotonVision name.
+   * Yaw/pitch on these targets are relative to that camera's optical axis.
+   *
+   * @return that camera's latest targets, or an empty list if the name isn't found.
+   */
+  public List<PhotonTrackedTarget> getTargets(String cameraName) {
+    for (CameraUnit unit : cameras) {
+      if (unit.name.equals(cameraName)) {
+        return unit.latestTargets;
+      }
+    }
+    return new ArrayList<>();
+  }
+
+  /**
+   * Latest targets from the TURRET-mounted camera specifically. This is what the
+   * turret-aim command must use: it reads each target's getYaw(), which is only
+   * meaningful relative to the camera physically on the turret.
+   *
+   * @return the turret camera's latest targets (empty if none in view).
+   */
+  public List<PhotonTrackedTarget> getTurretCameraTargets() {
+    return getTargets(VisionConstants.kCameraRightName);
   }
 }

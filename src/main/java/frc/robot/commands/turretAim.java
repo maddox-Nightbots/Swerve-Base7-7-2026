@@ -2,6 +2,7 @@ package frc.robot.commands;
 
 
 import java.util.List;
+import java.util.function.Supplier;
 
 import edu.wpi.first.wpilibj2.command.Command;
 
@@ -15,36 +16,38 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 import java.util.Optional;
 
-import edu.wpi.first.math.MathUtil;
-
 
 public class turretAim extends Command{
     TurretSubsystem turret;
-    List<PhotonTrackedTarget> targets;
+    // A live source of targets (VisionSubsystem::getLatestTargets), read fresh every
+    // loop so the turret tracks the tag as the robot/target move.
+    Supplier<List<PhotonTrackedTarget>> targetSupplier;
 
-    public turretAim(TurretSubsystem turret, List<PhotonTrackedTarget> targets){
+    public turretAim(TurretSubsystem turret, Supplier<List<PhotonTrackedTarget>> targetSupplier){
         addRequirements(turret);
         this.turret = turret;
-        this.targets = targets;
+        this.targetSupplier = targetSupplier;
     }
 
-    private double getHubYaw(double turretAngle, List<PhotonTrackedTarget> targetstoAim){
-        double angle = 0.0;
+    /** @return tag 6's yaw in degrees (from the turret camera), or 0 if it isn't seen. */
+    private double getTargetYaw(List<PhotonTrackedTarget> targetstoAim){
         Optional<Alliance> alliance = DriverStation.getAlliance();
+        // Which AprilTag is the hub for our alliance (both 6 for now / testing). Guard the
+        // Optional so we never crash before the driver station reports an alliance.
+        int hubTagId = (alliance.isPresent() && alliance.get() == Alliance.Blue) ? 6 : 6;
         for (var target: targetstoAim){
-            if(target.getFiducialId() == (alliance.get() == Alliance.Blue ? 1:0)){
-                angle = target.getYaw();
+            if(target.getFiducialId() == hubTagId){
+                return target.getYaw();
             }
         }
-        double targetAngle = turretAngle + angle/360;
-        return MathUtil.clamp(targetAngle, 0.0, 0.25);
+        return 0.0; // tag not seen this frame -> no correction
     }
 
     @Override
     public void execute() {
-        double angle = getHubYaw(turret.getAngle(), targets);
-        turret.setAngle(angle);
-        SmartDashboard.putNumber("Distance to Hub (inches)", angle);
+        double yaw = getTargetYaw(targetSupplier.get());
+        turret.aimAtYaw(yaw);
+        SmartDashboard.putNumber("Turret Tag Yaw", yaw);
     }
 
     @Override
