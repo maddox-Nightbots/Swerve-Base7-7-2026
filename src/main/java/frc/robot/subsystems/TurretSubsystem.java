@@ -1,5 +1,6 @@
 package frc.robot.subsystems;
 
+import com.revrobotics.RelativeEncoder;
 import com.revrobotics.spark.SparkBase.ControlType;
 import com.revrobotics.spark.SparkClosedLoopController;
 import com.revrobotics.spark.SparkLowLevel.MotorType;
@@ -13,6 +14,8 @@ public class TurretSubsystem extends SubsystemBase{
 
     private final SparkMax TurnMotor;
     private final SparkClosedLoopController controllerTurn;
+    RelativeEncoder encoder;
+    
 
     public TurretSubsystem() {
         TurnMotor = new SparkMax(ShooterConstants.TurnMotorID, MotorType.kBrushless);
@@ -31,10 +34,16 @@ public class TurretSubsystem extends SubsystemBase{
 
         TurnMotor.configure(TurnConfig, com.revrobotics.ResetMode.kResetSafeParameters,
                 com.revrobotics.PersistMode.kPersistParameters);
+
+        encoder = TurnMotor.getEncoder();
     }
 
     public void setAngle(double angle) {
         controllerTurn.setSetpoint(angle * ShooterConstants.gearRatio, ControlType.kPosition);
+    }
+
+    public double getAngle(){
+        return encoder.getPosition();
     }
 
     public void stop() {

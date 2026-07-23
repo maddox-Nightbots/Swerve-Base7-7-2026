@@ -7,8 +7,11 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard; // New Import
 import edu.wpi.first.wpilibj2.command.Command; // New Import
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import frc.robot.Constants.OperatorConstants;
+import frc.robot.commands.turretAim;
 import frc.robot.subsystems.OLEDPongSubsystem;
 import frc.robot.subsystems.SwerveSubsystem;
+import frc.robot.subsystems.TurretSubsystem;
+import frc.robot.subsystems.VisionSubsystem;
 import swervelib.SwerveInputStream;
 
 /**
@@ -21,6 +24,9 @@ public class RobotContainer {
   // We create an instance of SwerveSubsystem so we can tell the drivetrain what to do.
   private final SwerveSubsystem m_swerveSubsystem = new SwerveSubsystem();
 
+  private final TurretSubsystem m_TurretSubsystem = new TurretSubsystem();
+  private final VisionSubsystem m_VisionSubsystem = new VisionSubsystem(m_swerveSubsystem);
+
   private final SendableChooser<Command> autoChooser;
 
 
@@ -28,6 +34,8 @@ public class RobotContainer {
     // Set ENABLE_OLED_PONG to false to completely disable
     private static final boolean ENABLE_OLED_PONG = true;
     private final OLEDPongSubsystem pongSubsystem = ENABLE_OLED_PONG ? new OLEDPongSubsystem() : null;
+
+    
 
 
   // 2. CONTROLLERS: Defining the Inputs
@@ -100,6 +108,8 @@ public class RobotContainer {
     // B BUTTON: "Parking Brake" / Lock Pose.
     // While the driver holds B, the wheels turn into an 'X' shape so the robot cannot be pushed.
     m_driverController.b().whileTrue(m_swerveSubsystem.lockPoseCommand());
+
+    m_driverController.a().whileTrue(turretAim(m_TurretSubsystem, ))
   }
 
   /**
