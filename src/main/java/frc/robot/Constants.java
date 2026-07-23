@@ -4,6 +4,11 @@
 
 package frc.robot;
 
+import edu.wpi.first.math.geometry.Rotation3d;
+import edu.wpi.first.math.geometry.Transform3d;
+import edu.wpi.first.math.geometry.Translation3d;
+import edu.wpi.first.math.util.Units;
+
 //import edu.wpi.first.math.util.Units;
 
 /**
@@ -14,6 +19,8 @@ package frc.robot;
  * <p>It is advised to statically import this class (or one of its inner classes) wherever the
  * constants are needed, to reduce verbosity.
  */
+
+@SuppressWarnings("PropertyName")
 public final class Constants {
   public static class OperatorConstants {
     public static final int kDriverControllerPort = 0;
@@ -55,14 +62,7 @@ public final class Constants {
         new Translation3d(Units.inchesToMeters(10.0), Units.inchesToMeters(-10.0), Units.inchesToMeters(8.0)),
         new Rotation3d(0.0, Units.degreesToRadians(-20.0), Units.degreesToRadians(-30.0)));
 
-    public static final double gearRatio = 5;
-    public static final double IntakeDownPosition = 1;
-    public static final double IntakeUpPosition = 0;
-
   }
-
-  public static final double maxSpeed = 4.7;
-
   public static class IntakeConstants {
 
     public static final double gearRatio = 5;
