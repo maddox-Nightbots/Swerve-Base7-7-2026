@@ -150,6 +150,15 @@ public class SwerveSubsystem extends SubsystemBase {
   }
 
   /**
+   * Raw yaw straight from the Pigeon IMU (NOT fused odometry), as a Rotation2d,
+   * CCW-positive. The turret-aim command differentiates this between loops to learn
+   * how fast the chassis is spinning, so it can counter-rotate and stay field-locked.
+   */
+  public Rotation2d getGyroYaw() {
+    return swerveDrive.getGyro().getRotation3d().toRotation2d();
+  }
+
+  /**
    * This runs every 20ms (50 times per second).
    * It is the "Heartbeat" of the subsystem.
    */

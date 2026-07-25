@@ -34,13 +34,44 @@ public final class Constants {
   public static final double maxSpeed = 4.7;
   
   public static class ShooterConstants {
-   
+
     public static final int actuatorLeftServo = 0;
     public static final int actuatorRightServo = 0;
     public static final int shooterMotorLeftID = 2;
     public static final int TurnMotorID = 1;
     public static final double gearRatio = 1;
 
+  }
+
+  /**
+   * All turret tunables live here so aiming, limits, and safety can be adjusted in ONE place.
+   */
+  public static class TurretConstants {
+    // --- Hardware ---
+    public static final int kTurnMotorID = 1;          // CAN ID of the turret SparkMax
+    public static final double kTurretGearTeeth = 200.0; // teeth on the turret ring gear
+    public static final double kMotorGearTeeth = 14.0;   // teeth on the motor pinion
+    // Motor rotations per one full turret rotation (encoder counts motor shaft rotations).
+    public static final double kMotorRotationsPerTurretRotation = kTurretGearTeeth / kMotorGearTeeth;
+
+    // --- SAFETY: turret travel limits (in TURRET rotations) ---
+    // The wiring on the moving part of the turret CANNOT wind past this range without
+    // damage. Enforced in two layers: the subsystem's setAngle() clamp AND the SparkMax
+    // firmware soft limits. WARNING: assumes the turret boots at physical zero (relative
+    // encoder). Home the turret or use an absolute encoder for this to protect the right window.
+    // TODO: set these to the real wire-safe range measured on the robot.
+    public static final double kMinTurretRotations = 0.0;
+    public static final double kMaxTurretRotations = 0.25;
+
+    // --- Closed-loop position PID (SparkMax, in motor rotations) ---
+    public static final double kP = 0.11;
+    public static final double kI = 0.0;
+    public static final double kD = 0.0;
+    public static final int kSmartCurrentLimitAmps = 40;
+
+    // --- Vision aiming ---
+    public static final int kTargetTagId = 6;          // AprilTag the turret aims at
+    public static final double kAimGain = 0.3;         // fraction of yaw error corrected per loop
   }
   /**
    * Everything the PhotonVision-based {@code VisionSubsystem} needs.

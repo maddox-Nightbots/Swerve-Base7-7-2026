@@ -7,77 +7,65 @@ import com.revrobotics.spark.SparkLowLevel.MotorType;
 import com.revrobotics.spark.SparkMax;
 import com.revrobotics.spark.config.SparkMaxConfig;
 
+import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
-import frc.robot.Constants.ShooterConstants;
+import frc.robot.Constants.TurretConstants;
 
 public class TurretSubsystem extends SubsystemBase{
 
     private final SparkMax TurnMotor;
     private final SparkClosedLoopController controllerTurn;
     RelativeEncoder encoder;
-    private static final double kTurretGearTeeth = 200.0;
-    private static final double kMotorGearTeeth = 14.0;
 
-    // --- Turret aim tuning ---
-    private static final double kAimDeadbandDegrees = 1.0; // within this yaw, call it centered
-    private static final double kAimGain = 0.3;            // fraction of the yaw error corrected per loop
-    
+    // Travel limits in MOTOR rotations (what the encoder/soft-limits actually count),
+    // derived from the wire-safe turret-rotation limits in Constants.
+    private static final double kMinMotorRotations =
+        TurretConstants.kMinTurretRotations * TurretConstants.kMotorRotationsPerTurretRotation;
+    private static final double kMaxMotorRotations =
+        TurretConstants.kMaxTurretRotations * TurretConstants.kMotorRotationsPerTurretRotation;
+
 
     public TurretSubsystem() {
-        TurnMotor = new SparkMax(ShooterConstants.TurnMotorID, MotorType.kBrushless);
+        TurnMotor = new SparkMax(TurretConstants.kTurnMotorID, MotorType.kBrushless);
         controllerTurn = TurnMotor.getClosedLoopController();
 
-        SparkMaxConfig ShooterConstants = new SparkMaxConfig();
-        ShooterConstants.inverted(false);
-        ShooterConstants.smartCurrentLimit(40);
-        ShooterConstants.closedLoop
-        .p(0.11)
-        .i(0.0)
-        .d(0.0);
+        SparkMaxConfig turretConfig = new SparkMaxConfig();
+        turretConfig.inverted(false);
+        turretConfig.smartCurrentLimit(TurretConstants.kSmartCurrentLimitAmps);
+        turretConfig.closedLoop
+            .p(TurretConstants.kP)
+            .i(TurretConstants.kI)
+            .d(TurretConstants.kD);
 
-        SparkMaxConfig TurnConfig = ShooterConstants;
-        TurnConfig.inverted(false);
+        // LAYER 2: firmware soft limits on the SparkMax itself. The controller will not
+        // drive past these positions (in motor rotations) regardless of what the RIO commands.
+        turretConfig.softLimit
+            .forwardSoftLimit(kMaxMotorRotations)
+            .forwardSoftLimitEnabled(true)
+            .reverseSoftLimit(kMinMotorRotations)
+            .reverseSoftLimitEnabled(true);
 
-        TurnMotor.configure(TurnConfig, com.revrobotics.ResetMode.kResetSafeParameters,
+        TurnMotor.configure(turretConfig, com.revrobotics.ResetMode.kResetSafeParameters,
                 com.revrobotics.PersistMode.kPersistParameters);
 
         encoder = TurnMotor.getEncoder();
     }
 
+    /**
+     * Command the turret to a position in TURRET rotations. LAYER 1 safety: the request
+     * is clamped to the wire-safe travel window here, so NO caller (aim command, auto,
+     * manual jog, etc.) can drive the turret past its limits.
+     */
     public void setAngle(double angle) {
-        controllerTurn.setSetpoint(angle * kTurretGearTeeth / kMotorGearTeeth, ControlType.kPosition);
-        SmartDashboard.putNumber("turretAngle", angle);
+        double clamped = MathUtil.clamp(angle, TurretConstants.kMinTurretRotations, TurretConstants.kMaxTurretRotations);
+        controllerTurn.setSetpoint(clamped * TurretConstants.kMotorRotationsPerTurretRotation, ControlType.kPosition);
+        SmartDashboard.putNumber("turretAngle", clamped);
+        SmartDashboard.putBoolean("Turret At Limit", clamped != angle);
     }
 
     public double getAngle(){
-        return encoder.getPosition() * kMotorGearTeeth / kTurretGearTeeth;
-    }
-
-    /**
-     * Aim the turret to center a target, given that target's yaw (in DEGREES) from the
-     * turret camera. Converts the yaw error into turret rotations, steps a fraction
-     * toward center each loop (so it eases in with no snap), and delegates to setAngle(),
-     * which applies the gear ratio to get MOTOR rotations. Settles when yaw -> 0.
-     *
-     * Positive yaw is assumed to be the tag to the turret's LEFT; flip the sign below
-     * if the turret turns AWAY from the tag on your robot.
-     */
-    public void aimAtYaw(double yawDegrees) {
-        double currentTurretRotations = getAngle();
-
-        // Centered enough -> hold position, don't jitter around zero.
-        if (Math.abs(yawDegrees) < kAimDeadbandDegrees) {
-            setAngle(currentTurretRotations);
-            return;
-        }
-
-        // Degrees of error -> turret rotations. setAngle() then converts to motor rotations.
-        double errorTurretRotations = yawDegrees / 360.0;
-
-        // Command a small step toward center each loop (no big jump = no snap).
-        double target = currentTurretRotations - (kAimGain * errorTurretRotations);
-        setAngle(target);
+        return encoder.getPosition() / TurretConstants.kMotorRotationsPerTurretRotation;
     }
 
     public void stop() {

@@ -114,11 +114,16 @@ public class RobotContainer {
     // While the driver holds B, the wheels turn into an 'X' shape so the robot cannot be pushed.
     m_driverController.b().whileTrue(m_swerveSubsystem.lockPoseCommand());
 
-    // A BUTTON: Turret aim. Releasing stops the turret.
-    m_driverController.a().whileTrue(new turretAim(m_TurretSubsystem, m_VisionSubsystem::getTurretCameraTargets));
+    // A BUTTON: Turret aim. Tracks tag 6 with the turret camera AND counter-rotates
+    // against chassis spin (Pigeon IMU) so the aim holds when the robot turns.
+    // Releasing stops the turret.
+    m_driverController.a().whileTrue(new turretAim(
+        m_TurretSubsystem,
+        m_VisionSubsystem::getTurretCameraTargets,
+        m_swerveSubsystem::getGyroYaw));
 
     // RIGHT TRIGGER: Spin the shooter while held. Releasing stops the shooter.
-    m_driverController.rightTrigger(RIGHT_TRIGGER_THRESHOLD).whileTrue(new SpinShooter(m_ShooterSubsystem));
+    m_driverController.rightTrigger(RIGHT_TRIGGER_THRESHOLD).whileTrue(m_spinShooterCommand);
   }
 
   public void updateDashboard() {
