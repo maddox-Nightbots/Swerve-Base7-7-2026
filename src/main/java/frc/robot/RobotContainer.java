@@ -7,8 +7,10 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard; // New Import
 import edu.wpi.first.wpilibj2.command.Command; // New Import
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import frc.robot.Constants.OperatorConstants;
+import frc.robot.commands.SpinShooter;
 import frc.robot.commands.turretAim;
 import frc.robot.subsystems.OLEDPongSubsystem;
+import frc.robot.subsystems.ShooterSubsystem;
 import frc.robot.subsystems.SwerveSubsystem;
 import frc.robot.subsystems.TurretSubsystem;
 import frc.robot.subsystems.VisionSubsystem;
@@ -19,13 +21,16 @@ import swervelib.SwerveInputStream;
  * This class ties subsystems, controllers, and button bindings together.
  */
 public class RobotContainer {
+  private static final double RIGHT_TRIGGER_THRESHOLD = 0.5;
 
   // 1. SUBSYSTEMS: Creating the "Body Parts"
   // We create an instance of SwerveSubsystem so we can tell the drivetrain what to do.
   private final SwerveSubsystem m_swerveSubsystem = new SwerveSubsystem();
 
   private final TurretSubsystem m_TurretSubsystem = new TurretSubsystem();
+  private final ShooterSubsystem m_ShooterSubsystem = new ShooterSubsystem();
   private final VisionSubsystem m_VisionSubsystem = new VisionSubsystem(m_swerveSubsystem);
+  private final SpinShooter m_spinShooterCommand = new SpinShooter(m_ShooterSubsystem);
 
   private final SendableChooser<Command> autoChooser;
 
@@ -109,10 +114,19 @@ public class RobotContainer {
     // While the driver holds B, the wheels turn into an 'X' shape so the robot cannot be pushed.
     m_driverController.b().whileTrue(m_swerveSubsystem.lockPoseCommand());
 
-    // A BUTTON: Turret aim. While held, the turret tracks the hub AprilTag using live
-    // targets from the TURRET camera (getYaw() is relative to that camera, so we must
-    // not use the combined multi-camera list). Releasing stops the turret.
+    // A BUTTON: Turret aim. Releasing stops the turret.
     m_driverController.a().whileTrue(new turretAim(m_TurretSubsystem, m_VisionSubsystem::getTurretCameraTargets));
+
+    // RIGHT TRIGGER: Spin the shooter while held. Releasing stops the shooter.
+    m_driverController.rightTrigger(RIGHT_TRIGGER_THRESHOLD).whileTrue(new SpinShooter(m_ShooterSubsystem));
+  }
+
+  public void updateDashboard() {
+    double rightTriggerAxis = m_driverController.getRightTriggerAxis();
+    SmartDashboard.putNumber("Shooter/Right Trigger Axis", rightTriggerAxis);
+    SmartDashboard.putNumber("Shooter/Right Trigger Threshold", RIGHT_TRIGGER_THRESHOLD);
+    SmartDashboard.putBoolean("Shooter/Right Trigger Pressed", rightTriggerAxis > RIGHT_TRIGGER_THRESHOLD);
+    SmartDashboard.putBoolean("Shooter/Command Scheduled", m_spinShooterCommand.isScheduled());
   }
 
   /**

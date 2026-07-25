@@ -16,6 +16,8 @@ public class TurretSubsystem extends SubsystemBase{
     private final SparkMax TurnMotor;
     private final SparkClosedLoopController controllerTurn;
     RelativeEncoder encoder;
+    private static final double kTurretGearTeeth = 200.0;
+    private static final double kMotorGearTeeth = 14.0;
 
     // --- Turret aim tuning ---
     private static final double kAimDeadbandDegrees = 1.0; // within this yaw, call it centered
@@ -44,12 +46,12 @@ public class TurretSubsystem extends SubsystemBase{
     }
 
     public void setAngle(double angle) {
-        controllerTurn.setSetpoint((angle * 200/14), ControlType.kPosition);
+        controllerTurn.setSetpoint(angle * kTurretGearTeeth / kMotorGearTeeth, ControlType.kPosition);
         SmartDashboard.putNumber("turretAngle", angle);
     }
 
     public double getAngle(){
-        return (14*encoder.getPosition()/200);
+        return encoder.getPosition() * kMotorGearTeeth / kTurretGearTeeth;
     }
 
     /**

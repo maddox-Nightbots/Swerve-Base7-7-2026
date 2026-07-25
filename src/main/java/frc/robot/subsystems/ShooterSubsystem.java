@@ -1,19 +1,15 @@
 package frc.robot.subsystems;
 
-//import com.revrobotics.RelativeEncoder;
-//import com.revrobotics.spark.SparkBase;
-
+import com.revrobotics.RelativeEncoder;
 import com.revrobotics.spark.SparkBase.ControlType;
 import com.revrobotics.spark.SparkClosedLoopController;
 import com.revrobotics.spark.SparkFlex;
 import com.revrobotics.spark.SparkLowLevel.MotorType;
-import com.revrobotics.spark.SparkRelativeEncoder;
 import com.revrobotics.spark.config.SparkFlexConfig;
 
 import edu.wpi.first.math.MathUtil;
-
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
-
 import frc.robot.Constants.ShooterConstants;
 
 
@@ -22,6 +18,7 @@ public class ShooterSubsystem extends SubsystemBase {
     // create motors
     private final SparkFlex ShooterMotorLeft;
     private final SparkClosedLoopController controllerLeft;
+    private final RelativeEncoder shooterEncoder;
 
 
     @SuppressWarnings("FieldMayBeFinal")
@@ -34,6 +31,7 @@ public class ShooterSubsystem extends SubsystemBase {
 
         ShooterMotorLeft = new SparkFlex(ShooterConstants.shooterMotorLeftID, MotorType.kBrushless);
         controllerLeft = ShooterMotorLeft.getClosedLoopController();
+        shooterEncoder = ShooterMotorLeft.getEncoder();
 
 
         
@@ -42,9 +40,7 @@ public class ShooterSubsystem extends SubsystemBase {
         shooterConfig.inverted(false);
         shooterConfig.smartCurrentLimit(40);
         shooterConfig.closedLoop
-        .p(0.01)
-        .i(0.0)
-        .d(0.0);
+        .p(0.00015).i(0.000001).d(0.0003);
 
         SparkFlexConfig ShooterLeftConfig = shooterConfig;
         ShooterLeftConfig.inverted(false);
@@ -61,17 +57,28 @@ public class ShooterSubsystem extends SubsystemBase {
     }
 
     public void setShooterRPM(double rpm) {
-        controllerLeft.setSetpoint(rpm, ControlType.kVelocity);
+        controllerLeft.setSetpoint(-rpm, ControlType.kVelocity);
         targetSpeed = rpm;
     }
 
     public boolean isVelocityWithinTolerance() {
-            SparkRelativeEncoder encoder = (SparkRelativeEncoder) ShooterMotorLeft.getEncoder();
-            double rpm = encoder.getVelocity();
-            return (MathUtil.isNear(targetSpeed, rpm, 100));
+            return MathUtil.isNear(targetSpeed, shooterEncoder.getVelocity(), 100);
     }
 
     public void stop() {
         ShooterMotorLeft.set(0);
+        targetSpeed = 0.0;
+    }
+
+    @Override
+    public void periodic() {
+        SmartDashboard.putNumber("Shooter/CAN ID", ShooterConstants.shooterMotorLeftID);
+        SmartDashboard.putNumber("Shooter/Target RPM", targetSpeed);
+        SmartDashboard.putNumber("Shooter/Measured RPM", shooterEncoder.getVelocity());
+        SmartDashboard.putBoolean("Shooter/At Target RPM", isVelocityWithinTolerance());
+        SmartDashboard.putNumber("Shooter/Applied Output", ShooterMotorLeft.getAppliedOutput());
+        SmartDashboard.putNumber("Shooter/Bus Voltage", ShooterMotorLeft.getBusVoltage());
+        SmartDashboard.putNumber("Shooter/Output Current Amps", ShooterMotorLeft.getOutputCurrent());
+        SmartDashboard.putNumber("Shooter/Motor Temperature C", ShooterMotorLeft.getMotorTemperature());
     }
 }

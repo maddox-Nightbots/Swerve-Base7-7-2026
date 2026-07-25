@@ -15,19 +15,16 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import frc.robot.SelectHub;
 import frc.robot.ShooterState;
-import frc.robot.subsystems.HoodSubsystem;
 import frc.robot.subsystems.ShooterSubsystem;
 
 public class PrepareShot extends Command   {
 
     ShooterSubsystem shooter;
-    HoodSubsystem hood;
     private final Supplier<Pose2d> robotPoseSupplier;
 
-    public PrepareShot(ShooterSubsystem shooter, HoodSubsystem hood, Supplier<Pose2d> robotPoseSupplier) {
-        addRequirements(shooter, hood);
+    public PrepareShot(ShooterSubsystem shooter, Supplier<Pose2d> robotPoseSupplier) {
+        addRequirements(shooter);
         this.shooter = shooter;
-        this.hood = hood;
         this.robotPoseSupplier = robotPoseSupplier;
     }
 
@@ -65,7 +62,7 @@ public class PrepareShot extends Command   {
     }
 
     public boolean isReadyToShoot() {
-        return shooter.isVelocityWithinTolerance() && hood.isPositionWithinTolerance();
+        return shooter.isVelocityWithinTolerance();
     }
 
     @Override
@@ -73,7 +70,6 @@ public class PrepareShot extends Command   {
         final Distance distanceToHub = getDistanceToHub();
         final ShooterState shot = getShooterState();
         shooter.setShooterRPM(shot.rpm);
-        hood.setPosition(shot.hoodPosition);
         SmartDashboard.putNumber("Distance to Hub (inches)", distanceToHub.in(Inches));
     }
 

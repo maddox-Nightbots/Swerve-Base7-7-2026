@@ -37,7 +37,7 @@ public final class Constants {
    
     public static final int actuatorLeftServo = 0;
     public static final int actuatorRightServo = 0;
-    public static final int shooterMotorLeftID = 0;
+    public static final int shooterMotorLeftID = 2;
     public static final int TurnMotorID = 1;
     public static final double gearRatio = 1;
 
