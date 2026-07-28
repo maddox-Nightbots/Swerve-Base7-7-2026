@@ -64,7 +64,7 @@ public final class Constants {
     public static final double kMaxTurretRotations = 0.25;
 
     // --- Closed-loop position PID (SparkMax, in motor rotations) ---
-    public static final double kP = 0.11;
+    public static final double kP = 0.12;
     public static final double kI = 0.0;
     public static final double kD = 0.0;
     public static final int kSmartCurrentLimitAmps = 40;

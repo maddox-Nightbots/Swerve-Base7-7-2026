@@ -52,6 +52,40 @@ public class turretAim extends Command{
         pendingChassisRotations = 0.0;
     }
 
+    /**
+     * Choose which full-turn equivalent of {@code desired} the turret should go to.
+     * Every {@code desired + k} (k = whole turret rotations) points the same field direction.
+     *   1. Prefer equivalents INSIDE the clamp window [min, max] (the smaller allowed arc).
+     *   2. If more than one fits (range wider than a full turn), pick the one CLOSEST to the
+     *      turret's current position - the smaller move / correct side.
+     *   3. If none fit, pick the equivalent nearest an edge so setAngle() clamps to the
+     *      correct side instead of winding the long way.
+     */
+    private static double chooseReachableTarget(double desired, double current, double min, double max){
+        double best = desired;
+        double bestScore = Double.POSITIVE_INFINITY;
+        boolean haveInRange = false;
+        for (int k = -2; k <= 2; k++){
+            double candidate = desired + k;
+            boolean inRange = candidate >= min && candidate <= max;
+            if (inRange){
+                double move = Math.abs(candidate - current);          // smaller move wins
+                if (!haveInRange || move < bestScore){
+                    best = candidate;
+                    bestScore = move;
+                    haveInRange = true;
+                }
+            } else if (!haveInRange){
+                double edgeDist = Math.min(Math.abs(candidate - min), Math.abs(candidate - max));
+                if (edgeDist < bestScore){                            // nearest to the window
+                    best = candidate;
+                    bestScore = edgeDist;
+                }
+            }
+        }
+        return best;
+    }
+
     /** @return the target tag's yaw in degrees from the turret camera, or 0 if it isn't seen. */
     private double getTagYaw(List<PhotonTrackedTarget> targetstoAim){
         double yawDegrees = 0.0;
@@ -74,7 +108,7 @@ public class turretAim extends Command{
 
         // The turret is bolted to the chassis, so a +delta spin drags it +delta. It therefore
         // OWES -delta of counter-rotation to stay pointed at the field target. Add to the debt.
-        pendingChassisRotations -= chassisDeltaRotations;
+        pendingChassisRotations += chassisDeltaRotations;
 
         // --- 2. Drain the debt ONLY by how far the turret actually moved ---
         double measured = turret.getAngle();
@@ -93,19 +127,12 @@ public class turretAim extends Command{
         // Command = where the turret is + counter-rotation still owed + vision correction.
         double target = measured + pendingChassisRotations + visionRotations;
 
-        // --- 4. Wrap-around: if the target lands more than 180 deg from the middle of the
-        //        travel range, the turret would wind the long way. Swap a full turn so it
-        //        approaches from the other side (shorter path, avoids over-winding when the
-        //        robot keeps spinning in one direction). ---
-        double center = (TurretConstants.kMinTurretRotations + TurretConstants.kMaxTurretRotations) / 2.0;
-        while (target - center > 0.5) {
-            target -= 1.0;
-        }
-        while (target - center < -0.5) {
-            target += 1.0;
-        }
+        // --- 4. Pick the reachable SIDE ---
+        // The desired angle and its full-turn equivalents (+/- whole turret rotations) all
+        // point the turret the same way. Choose the one the turret can actually reach.
+        target = chooseReachableTarget(target, measured, turret.getClampMin(), turret.getClampMax());
 
-        // setAngle() clamps to the wire-safe limits (single source of truth in the subsystem).
+        // setAngle() clamps to the selected limits (single source of truth in the subsystem).
         turret.setAngle(target);
 
         SmartDashboard.putNumber("Turret Target Angle (degrees)", target * 360.0);
