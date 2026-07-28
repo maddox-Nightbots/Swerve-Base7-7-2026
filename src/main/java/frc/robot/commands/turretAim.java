@@ -21,13 +21,20 @@ public class turretAim extends Command{
     Supplier<List<PhotonTrackedTarget>> targetSupplier;
     // Raw Pigeon IMU yaw, used to counter-rotate the turret against chassis spin.
     Supplier<Rotation2d> gyroYawSupplier;
+
     // IMU yaw from the previous loop, so we can measure how far the chassis just turned.
     private Rotation2d lastGyroYaw = new Rotation2d();
-    // PERSISTENT commanded turret position (turret rotations). The counter-rotation and
-    // vision corrections accumulate here every loop, INDEPENDENT of the lagging encoder.
-    // (Basing the command on the measured position each loop caps the correction at one
-    // loop's worth and it never builds up authority — so the turret wouldn't counter-rotate.)
-    private double targetTurretRotations = 0.0;
+    // Turret encoder reading from the previous loop, so we can measure how far the turret
+    // ACTUALLY moved (used to drain the debt below).
+    private double lastTurretAngle = 0.0;
+    // The counter-rotation the turret still OWES the field target, in turret rotations.
+    // Every bit of chassis spin is ADDED here, and it is only DRAINED by how far the turret
+    // physically moved. So if the motor lags, this debt keeps growing -> the position error
+    // keeps growing -> the motor gets a bigger and bigger signal until it catches up.
+    private double pendingChassisRotations = 0.0;
+    // Cap the debt so a stalled turret can't wind it up forever (the wrap-around handles
+    // anything past half a turn).
+    private static final double kMaxPendingRotations = 1.0;
 
     public turretAim(TurretSubsystem turret, Supplier<List<PhotonTrackedTarget>> targetSupplier,
                      Supplier<Rotation2d> gyroYawSupplier){
@@ -39,10 +46,10 @@ public class turretAim extends Command{
 
     @Override
     public void initialize() {
-        // Seed the previous-yaw baseline so the first loop's delta isn't a huge jump.
+        // Seed the baselines so the first loop's deltas aren't huge jumps, and clear the debt.
         lastGyroYaw = gyroYawSupplier.get();
-        // Start the accumulator from wherever the turret currently is.
-        targetTurretRotations = turret.getAngle();
+        lastTurretAngle = turret.getAngle();
+        pendingChassisRotations = 0.0;
     }
 
     /** @return the target tag's yaw in degrees from the turret camera, or 0 if it isn't seen. */
@@ -58,34 +65,53 @@ public class turretAim extends Command{
 
     @Override
     public void execute() {
-        // --- Chassis-spin counter-rotation (Pigeon IMU) ---
+        // --- 1. Accumulate the chassis spin (Pigeon IMU) into the debt ---
         // How far the robot rotated since last loop (CCW-positive). Rotation2d.minus()
         // handles the 180/-180 wraparound for us.
         Rotation2d currentGyroYaw = gyroYawSupplier.get();
         double chassisDeltaRotations = currentGyroYaw.minus(lastGyroYaw).getRotations();
         lastGyroYaw = currentGyroYaw;
 
-        // The turret is bolted to the chassis, so a chassis rotation of +delta drags the
-        // turret +delta. Subtract it from the accumulated target to hold the turret pointed
-        // at the field target (robot spins left -> turret commanded right, same amount/speed).
-        targetTurretRotations -= chassisDeltaRotations;
+        // The turret is bolted to the chassis, so a +delta spin drags it +delta. It therefore
+        // OWES -delta of counter-rotation to stay pointed at the field target. Add to the debt.
+        pendingChassisRotations -= chassisDeltaRotations;
 
-        // --- Vision fine-aim on the target tag (turret camera) ---
-        // Nudge a FRACTION (kAimGain) of the yaw error toward center each loop. Using the
-        // full error would overshoot at 50 Hz; the gain makes it ease in and settle.
+        // --- 2. Drain the debt ONLY by how far the turret actually moved ---
+        double measured = turret.getAngle();
+        double actualMovement = measured - lastTurretAngle;
+        lastTurretAngle = measured;
+        pendingChassisRotations -= actualMovement;
+
+        // Anti-windup: never let the debt exceed one turn (wrap-around covers the rest).
+        pendingChassisRotations = MathUtil.clamp(pendingChassisRotations, -kMaxPendingRotations, kMaxPendingRotations);
+
+        // --- 3. Vision fine-aim (turret camera): FULL proportional correction, re-anchored
+        //        to the measured position each loop (the form that settled cleanly). No gain. ---
         double tagYawDegrees = getTagYaw(targetSupplier.get());
-        targetTurretRotations += TurretConstants.kAimGain * (tagYawDegrees / 360.0);
+        double visionRotations = tagYawDegrees / 360.0;
 
-        // Keep the accumulator inside the wire-safe window (anti-windup): if a spin pushes
-        // it past a limit it holds AT the limit instead of building up an out-of-range value
-        // it would have to unwind before responding. setAngle() clamps too (defense in depth).
-        targetTurretRotations = MathUtil.clamp(
-            targetTurretRotations, TurretConstants.kMinTurretRotations, TurretConstants.kMaxTurretRotations);
-        turret.setAngle(targetTurretRotations);
+        // Command = where the turret is + counter-rotation still owed + vision correction.
+        double target = measured + pendingChassisRotations + visionRotations;
 
-        SmartDashboard.putNumber("Turret Target Angle (degrees)", targetTurretRotations * 360.0);
+        // --- 4. Wrap-around: if the target lands more than 180 deg from the middle of the
+        //        travel range, the turret would wind the long way. Swap a full turn so it
+        //        approaches from the other side (shorter path, avoids over-winding when the
+        //        robot keeps spinning in one direction). ---
+        double center = (TurretConstants.kMinTurretRotations + TurretConstants.kMaxTurretRotations) / 2.0;
+        while (target - center > 0.5) {
+            target -= 1.0;
+        }
+        while (target - center < -0.5) {
+            target += 1.0;
+        }
+
+        // setAngle() clamps to the wire-safe limits (single source of truth in the subsystem).
+        turret.setAngle(target);
+
+        SmartDashboard.putNumber("Turret Target Angle (degrees)", target * 360.0);
         SmartDashboard.putNumber("Turret Tag Yaw (degrees)", tagYawDegrees);
         SmartDashboard.putNumber("Chassis Delta (degrees)", chassisDeltaRotations * 360.0);
+        SmartDashboard.putNumber("Turret Pending Debt (degrees)", pendingChassisRotations * 360.0);
     }
 
     @Override

@@ -71,7 +71,6 @@ public final class Constants {
 
     // --- Vision aiming ---
     public static final int kTargetTagId = 6;          // AprilTag the turret aims at
-    public static final double kAimGain = 0.3;         // fraction of yaw error corrected per loop
   }
   /**
    * Everything the PhotonVision-based {@code VisionSubsystem} needs.
