@@ -11,6 +11,7 @@ import frc.robot.subsystems.TurretSubsystem;
 
 import org.photonvision.targeting.PhotonTrackedTarget;
 
+import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
@@ -22,6 +23,11 @@ public class turretAim extends Command{
     Supplier<Rotation2d> gyroYawSupplier;
     // IMU yaw from the previous loop, so we can measure how far the chassis just turned.
     private Rotation2d lastGyroYaw = new Rotation2d();
+    // PERSISTENT commanded turret position (turret rotations). The counter-rotation and
+    // vision corrections accumulate here every loop, INDEPENDENT of the lagging encoder.
+    // (Basing the command on the measured position each loop caps the correction at one
+    // loop's worth and it never builds up authority — so the turret wouldn't counter-rotate.)
+    private double targetTurretRotations = 0.0;
 
     public turretAim(TurretSubsystem turret, Supplier<List<PhotonTrackedTarget>> targetSupplier,
                      Supplier<Rotation2d> gyroYawSupplier){
@@ -35,6 +41,8 @@ public class turretAim extends Command{
     public void initialize() {
         // Seed the previous-yaw baseline so the first loop's delta isn't a huge jump.
         lastGyroYaw = gyroYawSupplier.get();
+        // Start the accumulator from wherever the turret currently is.
+        targetTurretRotations = turret.getAngle();
     }
 
     /** @return the target tag's yaw in degrees from the turret camera, or 0 if it isn't seen. */
@@ -58,22 +66,24 @@ public class turretAim extends Command{
         lastGyroYaw = currentGyroYaw;
 
         // The turret is bolted to the chassis, so a chassis rotation of +delta drags the
-        // turret +delta. Subtract it to hold the turret pointed at the field target
-        // (robot spins left -> turret commanded right, same amount, same speed).
-        double turretRotations = turret.getAngle();
-        double target = turretRotations - chassisDeltaRotations;
+        // turret +delta. Subtract it from the accumulated target to hold the turret pointed
+        // at the field target (robot spins left -> turret commanded right, same amount/speed).
+        targetTurretRotations -= chassisDeltaRotations;
 
         // --- Vision fine-aim on the target tag (turret camera) ---
         // Nudge a FRACTION (kAimGain) of the yaw error toward center each loop. Using the
         // full error would overshoot at 50 Hz; the gain makes it ease in and settle.
         double tagYawDegrees = getTagYaw(targetSupplier.get());
-        target += TurretConstants.kAimGain * (tagYawDegrees / 360.0);
+        targetTurretRotations += TurretConstants.kAimGain * (tagYawDegrees / 360.0);
 
-        // setAngle() enforces the wire-safe travel limits (single source of truth in the
-        // subsystem), so a spin that would exceed them holds at the limit instead of winding.
-        turret.setAngle(target);
+        // Keep the accumulator inside the wire-safe window (anti-windup): if a spin pushes
+        // it past a limit it holds AT the limit instead of building up an out-of-range value
+        // it would have to unwind before responding. setAngle() clamps too (defense in depth).
+        targetTurretRotations = MathUtil.clamp(
+            targetTurretRotations, TurretConstants.kMinTurretRotations, TurretConstants.kMaxTurretRotations);
+        turret.setAngle(targetTurretRotations);
 
-        SmartDashboard.putNumber("Turret Target Angle (degrees)", target * 360.0);
+        SmartDashboard.putNumber("Turret Target Angle (degrees)", targetTurretRotations * 360.0);
         SmartDashboard.putNumber("Turret Tag Yaw (degrees)", tagYawDegrees);
         SmartDashboard.putNumber("Chassis Delta (degrees)", chassisDeltaRotations * 360.0);
     }
