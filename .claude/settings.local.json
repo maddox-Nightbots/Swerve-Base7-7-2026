@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(timeout 500 ./gradlew compileJava --offline)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(gh auth *)",
+      "Bash(git fetch *)",
+      "Bash(git rm *)",
+      "Bash(command -v gh)",
+      "Bash(gh --version)",
+      "Bash(gh pr create --base main --head vision --title 'Discord notify: guard missing webhook + notify on PR events' --body ' *)",
+      "Bash(gh pr *)",
+      "Bash(git merge *)",
+      "Bash(gh run *)",
+      "Bash(git pull *)",
+      "WebFetch(domain:codedocs.revrobotics.com)",
+      "Bash(git checkout *)",
+      "Bash(git switch *)",
+      "Read(//mnt/c/Windows/System32/**)",
+      "Read(//mnt/c/Windows/System32/WindowsPowerShell/v1.0/**)",
+      "Read(//etc/**)",
+      "Bash(/mnt/c/Users/Public/wpilib/2026/jdk/bin/java.exe -version)",
+      "Bash(timeout 540 /mnt/c/Windows/System32/cmd.exe /c \"gradlew.bat compileJava --offline --rerun-tasks\")",
+      "Bash(rm -rf build)",
+      "Bash(timeout 540 /mnt/c/Windows/System32/cmd.exe /c \"gradlew.bat compileJava --offline\")",
+      "WebSearch",
+      "WebFetch(domain:docs.wpilib.org)"
+    ]
+  }
+}

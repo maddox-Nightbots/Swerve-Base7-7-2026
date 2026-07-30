@@ -9,6 +9,7 @@ import com.revrobotics.spark.config.SparkMaxConfig;
 
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants.TurretConstants;
 
@@ -17,9 +18,6 @@ public class TurretSubsystem extends SubsystemBase{
     private final SparkMax TurnMotor;
     private final SparkClosedLoopController controllerTurn;
     RelativeEncoder encoder;
-
-    // Dashboard keys (all under the "Turret" group in SmartDashboard).
-    private static final String kSetClampKey = "Turret/Set Clamp (click)";
 
     // Absolute firmware backstop (turret rotations, symmetric about 0). The hand-set clamps
     // below operate WITHIN this; firmware only catches a code fault. SAFETY: this is the
@@ -68,9 +66,38 @@ public class TurretSubsystem extends SubsystemBase{
 
         encoder = TurnMotor.getEncoder();
 
-        // Publish the "Set Clamp" checkbox so it appears on the dashboard. Clicking it (true)
-        // is read + reset in periodic(). This is a plain boolean - shows in every dashboard.
-        SmartDashboard.putBoolean(kSetClampKey, false);
+        // The "Set Clamp" button, published as a Command (this is the form that reliably
+        // showed up in Glass). Clicking Run captures the current angle as the next clamp.
+        // ignoringDisable(true) lets it work while the robot is DISABLED.
+        SmartDashboard.putData("Set Clamp",
+            Commands.runOnce(this::captureClamp).ignoringDisable(true).withName("Set Clamp"));
+
+        // GROUPED WIDGET in the dashboard DROPDOWN. The dropdown only lists Sendables, which
+        // is why the plain "Turret/..." putX values (in periodic) never appeared there - they
+        // live only in the NT tree. This publishes ONE Sendable named "Turret" that groups the
+        // whole readout. Sendable is a functional interface, so the lambda IS the Sendable.
+        //
+        // KEY: this is a SEPARATE Sendable that only READS from the subsystem. Publishing the
+        // subsystem itself (putData("...", this)) collides with SubsystemBase's LiveWindow
+        // registration and silently never shows - that was the old bug. Published ONCE here so
+        // SendableRegistry keeps a strong reference (do NOT re-publish in periodic).
+        SmartDashboard.putData("Turret", builder -> {
+            builder.setSmartDashboardType("Turret Status");
+            builder.addStringProperty("Status", this::getStatusMessage, null);
+            builder.addBooleanProperty("Locked", () -> !bothClampsSet(), null);
+            builder.addStringProperty("Next Click Sets", () -> nextIsClamp1 ? "Clamp 1" : "Clamp 2", null);
+            builder.addBooleanProperty("Clamp 1 Set", () -> clamp1Set, null);
+            builder.addBooleanProperty("Clamp 2 Set", () -> clamp2Set, null);
+            builder.addDoubleProperty("Clamp 1 (deg)", () -> clamp1Rotations * 360.0, null);
+            builder.addDoubleProperty("Clamp 2 (deg)", () -> clamp2Rotations * 360.0, null);
+            builder.addDoubleProperty("Current Angle (deg)", () -> getAngle() * 360.0, null);
+            builder.addDoubleProperty("Commanded Angle (deg)", () -> lastCommandedRotations * 360.0, null);
+            builder.addBooleanProperty("At Limit", () -> atLimit, null);
+        });
+
+        // DEPLOY MARKER: if you see "Turret/BUILD" = this text in Glass, the NEW code is
+        // running. If it's missing, your deploy shipped stale code (fix the deploy, not the code).
+        SmartDashboard.putString("Turret/BUILD", "diagnostics-build-A");
     }
 
     /** Capture the turret's current (hand-set) angle as the next clamp, alternating 1 / 2. */
@@ -148,13 +175,6 @@ public class TurretSubsystem extends SubsystemBase{
 
     @Override
     public void periodic() {
-        // Handle the "Set Clamp" checkbox: if clicked (true), capture and reset it to false
-        // so it behaves like a momentary button.
-        if (SmartDashboard.getBoolean(kSetClampKey, false)) {
-            captureClamp();
-            SmartDashboard.putBoolean(kSetClampKey, false);
-        }
-
         // Status readouts - all plain putX under the "Turret" group.
         SmartDashboard.putString("Turret/Status", getStatusMessage());
         SmartDashboard.putBoolean("Turret/Locked", !bothClampsSet());
@@ -166,5 +186,13 @@ public class TurretSubsystem extends SubsystemBase{
         SmartDashboard.putNumber("Turret/Current Angle (deg)", getAngle() * 360.0);
         SmartDashboard.putNumber("Turret/Commanded Angle (deg)", lastCommandedRotations * 360.0);
         SmartDashboard.putBoolean("Turret/At Limit", atLimit);
+
+        // Motor / encoder diagnostics.
+        SmartDashboard.putBoolean("Turret/Can Move", bothClampsSet());
+        SmartDashboard.putNumber("Turret/Motor Output", TurnMotor.getAppliedOutput());
+        SmartDashboard.putNumber("Turret/Motor Current (A)", TurnMotor.getOutputCurrent());
+        SmartDashboard.putNumber("Turret/Motor Temp (C)", TurnMotor.getMotorTemperature());
+        SmartDashboard.putNumber("Turret/Motor Velocity (RPM)", encoder.getVelocity());
+        SmartDashboard.putNumber("Turret/Encoder Rotations (motor)", encoder.getPosition());
     }
 }
