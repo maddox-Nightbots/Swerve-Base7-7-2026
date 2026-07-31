@@ -112,7 +112,7 @@ public class IntakeSubsystem extends SubsystemBase {
             this.runOnce(() -> this.setIntakePosition(IntakeConstants.IntakeDownPosition*3/4)).until(() -> this.getIntakePosition() == IntakeConstants.IntakeDownPosition*3/4),
         
             this.runOnce(() -> this.setIntakePosition(IntakeConstants.IntakeDownPosition/4)).until(() -> this.getIntakePosition() == IntakeConstants.IntakeDownPosition/4)
-        ).repeatedly();
+        );
     }
 
     public Command Intaking(){

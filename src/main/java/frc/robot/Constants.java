@@ -4,6 +4,8 @@
 
 package frc.robot;
 
+import java.util.Optional;
+
 import edu.wpi.first.math.Matrix;
 import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.geometry.Rotation3d;
@@ -12,6 +14,8 @@ import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
 import edu.wpi.first.math.util.Units;
+import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.DriverStation.Alliance;
 
 //import edu.wpi.first.math.util.Units;
 
@@ -74,7 +78,8 @@ public final class Constants {
     public static final int kSmartCurrentLimitAmps = 40;
 
     // --- Vision aiming ---
-    public static final int kTargetTagId = 6;          // AprilTag the turret aims at
+    final static Optional<Alliance> alliance = DriverStation.getAlliance();
+    public static final int kTargetTagId = (alliance.get() == Alliance.Red ? 6 : 6); // AprilTag the turret aims at
   }
   /**
    * Everything the PhotonVision-based {@code VisionSubsystem} needs.
@@ -116,5 +121,11 @@ public final class Constants {
     public static final double IntakeDownPosition = 1;
     public static final double IntakeUpPosition = 0;
 
+  }
+
+  public static class HoodConstants {
+    public static final double gearRatio = 5;
+    public static final double HoodDownPosition = 1;
+    public static final double HoodUpPosition = 0;
   }
 }
