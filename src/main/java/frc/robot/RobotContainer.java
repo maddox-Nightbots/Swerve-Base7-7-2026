@@ -5,10 +5,12 @@ import com.pathplanner.lib.auto.AutoBuilder; // New Import
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard; // New Import
 import edu.wpi.first.wpilibj2.command.Command; // New Import
+import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import frc.robot.Constants.OperatorConstants;
 import frc.robot.commands.SpinShooter;
 import frc.robot.commands.turretAim;
+import frc.robot.subsystems.IntakeSubsystem;
 import frc.robot.subsystems.OLEDPongSubsystem;
 import frc.robot.subsystems.ShooterSubsystem;
 import frc.robot.subsystems.SwerveSubsystem;
@@ -31,6 +33,7 @@ public class RobotContainer {
   private final ShooterSubsystem m_ShooterSubsystem = new ShooterSubsystem();
   private final VisionSubsystem m_VisionSubsystem = new VisionSubsystem(m_swerveSubsystem);
   private final SpinShooter m_spinShooterCommand = new SpinShooter(m_ShooterSubsystem);
+  private final IntakeSubsystem m_IntakeSubsystem = new IntakeSubsystem();
 
   private final SendableChooser<Command> autoChooser;
 
@@ -104,6 +107,7 @@ public class RobotContainer {
     // SET DEFAULT COMMAND: This tells the robot "If I am not pressing any other buttons, do THIS."
     // In this case, the robot should always be listening to the joysticks to drive.
     m_swerveSubsystem.setDefaultCommand(m_swerveSubsystem.driveFieldOriented(driveInputStream));
+    m_IntakeSubsystem.setDefaultCommand(Commands.run(() -> m_IntakeSubsystem.Stop(), m_IntakeSubsystem));
 
     // Y BUTTON: Resets the Gyro. 
     // If the robot's "Forward" direction gets confused, the driver points the robot 
@@ -124,6 +128,9 @@ public class RobotContainer {
 
     // RIGHT TRIGGER: Spin the shooter while held. Releasing stops the shooter.
     m_driverController.rightTrigger(RIGHT_TRIGGER_THRESHOLD).whileTrue(m_spinShooterCommand);
+
+    // LEFT TRIGGER: Lower intake and spin it keep trying to set intake position while intaking because balls can move it.
+    m_driverController.leftTrigger(RIGHT_TRIGGER_THRESHOLD).whileTrue(m_IntakeSubsystem.Intaking());
   }
 
   public void updateDashboard() {

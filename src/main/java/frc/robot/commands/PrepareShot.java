@@ -1,7 +1,11 @@
 package frc.robot.commands;
 
+import java.util.List;
 //import java.util.Optional;
 import java.util.function.Supplier;
+
+import org.photonvision.PhotonUtils;
+import org.photonvision.targeting.PhotonTrackedTarget;
 
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Translation2d;
@@ -16,22 +20,34 @@ import edu.wpi.first.wpilibj2.command.Command;
 import frc.robot.SelectHub;
 import frc.robot.ShooterState;
 import frc.robot.subsystems.ShooterSubsystem;
+import org.photonvision.targeting.PhotonTrackedTarget;
 
 public class PrepareShot extends Command   {
 
     ShooterSubsystem shooter;
     private final Supplier<Pose2d> robotPoseSupplier;
 
-    public PrepareShot(ShooterSubsystem shooter, Supplier<Pose2d> robotPoseSupplier) {
+    public PrepareShot(ShooterSubsystem shooter, Supplier<List<PhotonTrackedTarget>> targetSupplier) {
         addRequirements(shooter);
         this.shooter = shooter;
-        this.robotPoseSupplier = robotPoseSupplier;
+        this.List<PhotonTrackedTarget> = targets;
     }
 
-    private Distance getDistanceToHub() {
-        final Translation2d robotPosition = robotPoseSupplier.get().getTranslation();
-            return Meters.of(robotPosition.getDistance(SelectHub.hubPosition()));
-    } 
+        private double getTagDistance(List<PhotonTrackedTarget> targetstoAim){
+if (result.hasTargets()) {
+            // Get the best (closest/most centered) target
+            PhotonTrackedTarget target = result.getBestTarget();
+
+            // Calculate distance using PhotonUtils
+            double distanceMeters = PhotonUtils.calculateDistanceToTargetMeters(
+                CAMERA_HEIGHT_METERS,
+                TARGET_HEIGHT_METERS,
+                CAMERA_PITCH_RADIANS,
+                Units.degreesToRadians(target.getPitch()) // Vertical angle from camera to target
+            );
+
+            return distanceMeters;
+    }
 
 
         private ShooterState getShooterState(){

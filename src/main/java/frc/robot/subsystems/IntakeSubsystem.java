@@ -33,8 +33,8 @@ public class IntakeSubsystem extends SubsystemBase {
     public IntakeSubsystem() {
 
         //config motors
-        intakeMotor = new TalonFX(5);
-        armMotor = new SparkMax(6, MotorType.kBrushless);
+        intakeMotor = new TalonFX(6);
+        armMotor = new SparkMax(5, MotorType.kBrushless);
 
         //config arm motor
         SparkMaxConfig armConfig = new SparkMaxConfig();
@@ -85,6 +85,10 @@ public class IntakeSubsystem extends SubsystemBase {
         return intakepidController.getSetpoint() / IntakeConstants.gearRatio;
     }
 
+    public void Stop(){
+        setVelocityRPM(0);
+    }
+
     public Command SpinIntakeWheels(){
         return this.run(() -> {
             this.setVelocityRPM(2000);
@@ -112,6 +116,6 @@ public class IntakeSubsystem extends SubsystemBase {
     }
 
     public Command Intaking(){
-        return Commands.sequence(this.runOnce(() -> this.IntakeDown()), this.run(() -> this.SpinIntakeWheels()));
+        return Commands.parallel(this.runOnce(() -> this.IntakeDown()), this.run(() -> this.SpinIntakeWheels()));
     }
 }
