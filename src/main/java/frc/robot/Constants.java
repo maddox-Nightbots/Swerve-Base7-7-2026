@@ -54,14 +54,18 @@ public final class Constants {
     // Motor rotations per one full turret rotation (encoder counts motor shaft rotations).
     public static final double kMotorRotationsPerTurretRotation = kTurretGearTeeth / kMotorGearTeeth;
 
-    // --- SAFETY: turret travel limits (in TURRET rotations) ---
-    // The wiring on the moving part of the turret CANNOT wind past this range without
-    // damage. Enforced in two layers: the subsystem's setAngle() clamp AND the SparkMax
-    // firmware soft limits. WARNING: assumes the turret boots at physical zero (relative
-    // encoder). Home the turret or use an absolute encoder for this to protect the right window.
-    // TODO: set these to the real wire-safe range measured on the robot.
-    public static final double kMinTurretRotations = 0.0;
-    public static final double kMaxTurretRotations = 0.25;
+    // --- SAFETY: absolute turret backstop (in TURRET rotations, symmetric about boot position) ---
+    // The wiring on the moving part of the turret CANNOT wind past this without damage. This is
+    // the WIDEST the turret can ever go; the hand-taught clamps operate inside it. Enforced in
+    // two layers: TurretSubsystem.setAngle() and the SparkMax firmware soft limits.
+    // WARNING: the encoder is RELATIVE, so this window is measured from wherever the turret sat
+    // at boot. Home the turret before enabling, or move to an absolute encoder.
+    // TODO: set this to the real wire-safe range measured on the robot.
+    public static final double kBackstopRotations = 180.0 / 360.0; // 0.5 rot = +/-180 deg
+
+    // Smallest allowed spread between the two taught clamps. Capturing both at nearly the same
+    // spot would pin the turret in place, which reads as "broken" on the field.
+    public static final double kMinClampSpreadRotations = 5.0 / 360.0; // 5 deg
 
     // --- Closed-loop position PID (SparkMax, in motor rotations) ---
     public static final double kP = 0.12;

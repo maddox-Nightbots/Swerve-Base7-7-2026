@@ -26,7 +26,18 @@
       "Bash(rm -rf build)",
       "Bash(timeout 540 /mnt/c/Windows/System32/cmd.exe /c \"gradlew.bat compileJava --offline\")",
       "WebSearch",
-      "WebFetch(domain:docs.wpilib.org)"
+      "WebFetch(domain:docs.wpilib.org)",
+      "Bash(./gradlew compileJava --offline -q)",
+      "Bash(echo \"--- exit: $? ---\")",
+      "Bash(export JAVA_HOME=/mnt/c/Users/Public/wpilib/2026/jdk)",
+      "Bash(/mnt/c/Users/Public/wpilib/2026/jdk/bin/java -version)",
+      "Read(//mnt/c/Users/Public/wpilib/2026/maven/**)",
+      "Bash(rm -rf jd)",
+      "Bash(mkdir -p jd)",
+      "Bash(unzip -o -q /mnt/c/Users/Public/wpilib/2026/maven/edu/wpi/first/wpilibj/wpilibj-java/2026.2.1/wpilibj-java-2026.2.1-javadoc.jar \"edu/wpi/first/wpilibj/Alert*\" -d jd)",
+      "Bash(grep -v \"^\\\\s*$\")",
+      "Bash(cmd.exe /c \"set JAVA_HOME=C:\\\\Users\\\\Public\\\\wpilib\\\\2026\\\\jdk&& gradlew.bat compileJava --offline\")",
+      "Bash(/mnt/c/Windows/System32/cmd.exe /c \"cd /d C:\\\\Users\\\\WillFreyman\\\\Desktop\\\\robot shit\\\\SWERVE_BEST && set JAVA_HOME=C:\\\\Users\\\\Public\\\\wpilib\\\\2026\\\\jdk&& gradlew.bat compileJava --offline\")"
     ]
   }
 }

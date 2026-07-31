@@ -32,6 +32,8 @@ public class turretAim extends Command{
     // physically moved. So if the motor lags, this debt keeps growing -> the position error
     // keeps growing -> the motor gets a bigger and bigger signal until it catches up.
     private double pendingChassisRotations = 0.0;
+    // Whether the target tag was seen on the most recent loop (dashboard readout only).
+    private boolean tagVisible = false;
     // Cap the debt so a stalled turret can't wind it up forever (the wrap-around handles
     // anything past half a turn).
     private static final double kMaxPendingRotations = 1.0;
@@ -86,12 +88,18 @@ public class turretAim extends Command{
         return best;
     }
 
-    /** @return the target tag's yaw in degrees from the turret camera, or 0 if it isn't seen. */
+    /**
+     * @return the target tag's yaw in degrees from the turret camera, or 0 if it isn't seen.
+     *     A yaw of 0 also means "already centered", so {@link #tagVisible} is set here to tell
+     *     the two apart on the dashboard. Either way 0 means "no vision correction this loop".
+     */
     private double getTagYaw(List<PhotonTrackedTarget> targetstoAim){
         double yawDegrees = 0.0;
+        tagVisible = false;
         for (var target: targetstoAim){
             if(target.getFiducialId() == TurretConstants.kTargetTagId){
                 yawDegrees = target.getYaw();
+                tagVisible = true;
             }
         }
         return yawDegrees;
@@ -135,10 +143,11 @@ public class turretAim extends Command{
         // setAngle() clamps to the selected limits (single source of truth in the subsystem).
         turret.setAngle(target);
 
-        SmartDashboard.putNumber("Turret Target Angle (degrees)", target * 360.0);
-        SmartDashboard.putNumber("Turret Tag Yaw (degrees)", tagYawDegrees);
-        SmartDashboard.putNumber("Chassis Delta (degrees)", chassisDeltaRotations * 360.0);
-        SmartDashboard.putNumber("Turret Pending Debt (degrees)", pendingChassisRotations * 360.0);
+        SmartDashboard.putNumber("TurretDiag/Aim Target (deg)", target * 360.0);
+        SmartDashboard.putNumber("TurretDiag/Aim Tag Yaw (deg)", tagYawDegrees);
+        SmartDashboard.putNumber("TurretDiag/Aim Chassis Delta (deg)", chassisDeltaRotations * 360.0);
+        SmartDashboard.putNumber("TurretDiag/Aim Pending Debt (deg)", pendingChassisRotations * 360.0);
+        SmartDashboard.putBoolean("TurretDiag/Aim Tag Visible", tagVisible);
     }
 
     @Override
