@@ -117,7 +117,7 @@ public final class Constants {
   }
   public static class IntakeConstants {
 
-    public static final double gearRatio = 5;
+    public static final double gearRatio = 10.666;
     public static final double IntakeDownPosition = 1;
     public static final double IntakeUpPosition = 0;
 
@@ -125,7 +125,7 @@ public final class Constants {
 
   public static class HoodConstants {
     public static final double gearRatio = 5;
-    public static final double HoodDownPosition = 1;
-    public static final double HoodUpPosition = 0;
+    public static final double HoodDownPosition = 0.25;
+    public static final double HoodUpPosition = 0.1;
   }
 }

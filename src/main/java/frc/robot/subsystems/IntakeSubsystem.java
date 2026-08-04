@@ -91,7 +91,7 @@ public class IntakeSubsystem extends SubsystemBase {
 
     public Command SpinIntakeWheels(){
         return this.run(() -> {
-            this.setVelocityRPM(2000);
+            this.setVelocityRPM(-2000);
         });
     }
 
