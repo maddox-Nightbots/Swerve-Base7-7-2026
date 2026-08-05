@@ -117,9 +117,25 @@ public final class Constants {
   }
   public static class IntakeConstants {
 
-    public static final double gearRatio = 10.666;
-    public static final double IntakeDownPosition = 1;
-    public static final double IntakeUpPosition = 0;
+    public static final double gearRatio = 100*2.67;
+    public static final double IntakeDownPosition = -0.25;
+    public static final double IntakeUpPosition = 0.00;
+
+    // RoboRIO DIO port for the arm's bottom limit switch. Wired to ground, so
+    // the input reads low (false) when the arm is at the bottom of its travel.
+    public static final int ArmLowerLimitSwitchPort = 0;
+
+    // How close (in output rotations) the arm must get before a move is
+    // considered finished.
+    public static final double ArmPositionTolerance = 0.01;
+
+    // Safety cap on a single arm move, so a stalled or blocked arm can never
+    // hang a command group forever.
+    public static final double ArmMoveTimeoutSeconds = 1.0;
+
+    // TEMPORARY: open-loop speed for the manual D-pad jog used to bench-test the
+    // limit switch. Keep this slow.
+    public static final double ArmJogSpeed = 0.10;
 
   }
 

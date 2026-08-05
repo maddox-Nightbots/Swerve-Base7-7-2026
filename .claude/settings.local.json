@@ -37,7 +37,10 @@
       "Bash(unzip -o -q /mnt/c/Users/Public/wpilib/2026/maven/edu/wpi/first/wpilibj/wpilibj-java/2026.2.1/wpilibj-java-2026.2.1-javadoc.jar \"edu/wpi/first/wpilibj/Alert*\" -d jd)",
       "Bash(grep -v \"^\\\\s*$\")",
       "Bash(cmd.exe /c \"set JAVA_HOME=C:\\\\Users\\\\Public\\\\wpilib\\\\2026\\\\jdk&& gradlew.bat compileJava --offline\")",
-      "Bash(/mnt/c/Windows/System32/cmd.exe /c \"cd /d C:\\\\Users\\\\WillFreyman\\\\Desktop\\\\robot shit\\\\SWERVE_BEST && set JAVA_HOME=C:\\\\Users\\\\Public\\\\wpilib\\\\2026\\\\jdk&& gradlew.bat compileJava --offline\")"
+      "Bash(/mnt/c/Windows/System32/cmd.exe /c \"cd /d C:\\\\Users\\\\WillFreyman\\\\Desktop\\\\robot shit\\\\SWERVE_BEST && set JAVA_HOME=C:\\\\Users\\\\Public\\\\wpilib\\\\2026\\\\jdk&& gradlew.bat compileJava --offline\")",
+      "Read(//mnt/c/Users/Public/wpilib/2026/jdk/**)",
+      "Read(//mnt/c/Users/Public/wpilib/**)",
+      "Bash(cmd.exe /c \"set JAVA_HOME=C:\\\\Users\\\\Public\\\\wpilib\\\\2026\\\\jdk && gradlew.bat compileJava --offline -q\")"
     ]
   }
 }
