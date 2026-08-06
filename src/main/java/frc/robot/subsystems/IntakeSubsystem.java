@@ -104,8 +104,10 @@ public class IntakeSubsystem extends SubsystemBase {
     }
 
     public void setIntakePosition(double position) {
+        
         double target = position * IntakeConstants.gearRatio;
         intakepidController.setSetpoint(target, ControlType.kPosition);
+
     }
 
     public double getIntakePosition() {
@@ -131,6 +133,7 @@ public class IntakeSubsystem extends SubsystemBase {
     public Command limitTriggereCommand(){
         return Commands.sequence(
             this.run(() -> {
+                armMotor.set(0.0);
                 armEncoder.setPosition(-0.27 * IntakeConstants.gearRatio);
                 DataLogManager.log("Limit switch triggered! Overriding Intake.");
             }),
