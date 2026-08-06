@@ -117,7 +117,7 @@ public final class Constants {
   }
   public static class IntakeConstants {
 
-    public static final double gearRatio = 100*2.67;
+    public static final double gearRatio = 100*32 / 12;
     public static final double IntakeDownPosition = -0.25;
     public static final double IntakeUpPosition = 0.00;
 
