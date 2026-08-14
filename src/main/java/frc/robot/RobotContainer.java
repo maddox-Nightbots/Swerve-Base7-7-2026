@@ -131,6 +131,7 @@ public class RobotContainer {
 
     // LEFT TRIGGER: Lower intake and spin it keep trying to set intake position while intaking because balls can move it.
     m_driverController.leftTrigger(RIGHT_TRIGGER_THRESHOLD).whileTrue(m_IntakeSubsystem.Intaking());
+    m_driverController.leftTrigger(RIGHT_TRIGGER_THRESHOLD).whileFalse(Commands.run(() -> m_IntakeSubsystem.intaking=false));
 
     // manual arm controlls for bench-testing the lower limit switch.
     // D-pad up drives the arm up, D-pad down drives it down (blocked at the switch).

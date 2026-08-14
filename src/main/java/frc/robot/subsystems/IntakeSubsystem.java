@@ -39,6 +39,8 @@ public class IntakeSubsystem extends SubsystemBase {
 
      private boolean m_safetyTriggered = false; 
 
+    public boolean intaking = false;
+
     public IntakeSubsystem() {
 
         //config motors
@@ -184,6 +186,7 @@ public class IntakeSubsystem extends SubsystemBase {
     }
 
     public Command IntakeUpDown() {
+        if (!intaking){
         return Commands.sequence(
             this.run( () -> setIntakePosition(IntakeConstants.IntakeDownPosition*3/4)),
             Commands.waitUntil(() -> MathUtil.isNear(getIntakePosition(), IntakeConstants.IntakeDownPosition*3/4-0.02, IntakeConstants.IntakeDownPosition*3/4+0.02)),
@@ -191,12 +194,17 @@ public class IntakeSubsystem extends SubsystemBase {
             Commands.waitUntil(() -> MathUtil.isNear(getIntakePosition(), IntakeConstants.IntakeDownPosition/4-0.02, IntakeConstants.IntakeDownPosition/4+0.02))
         );
     }
+    return run(() -> {
+        SmartDashboard.putBoolean("intake running", intaking);
+    });
+}
 
 
     public Command Intaking(){
         return this.run(() -> {
             this.setIntakePosition(IntakeConstants.IntakeDownPosition);
             this.setVelocityRPM(-2000);
+            intaking = true;
         });
     }
 }
