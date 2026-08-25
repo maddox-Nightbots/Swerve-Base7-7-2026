@@ -7,7 +7,19 @@
         {
           "type": "path",
           "data": {
-            "pathName": "Left Side Trench Move Forward"
+            "pathName": "Feed and Shoot P1"
+          }
+        },
+        {
+          "type": "wait",
+          "data": {
+            "waitTime": 5.0
+          }
+        },
+        {
+          "type": "named",
+          "data": {
+            "name": "Shoot"
           }
         }
       ]
