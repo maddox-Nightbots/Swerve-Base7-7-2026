@@ -105,6 +105,10 @@ public class turretAim extends Command{
         return yawDegrees;
     }
 
+    public static Boolean ableToShoot(){
+        return MathUtil.isNear(0, getTagYaw(targetstoAim), 5);
+    }
+
     @Override
     public void execute() {
         // --- 1. Accumulate the chassis spin (Pigeon IMU) into the debt ---

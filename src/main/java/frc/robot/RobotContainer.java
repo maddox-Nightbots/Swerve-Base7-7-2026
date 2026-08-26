@@ -8,8 +8,11 @@ import edu.wpi.first.wpilibj2.command.Command; // New Import
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import frc.robot.Constants.OperatorConstants;
+import frc.robot.commands.ShootSequence;
 import frc.robot.commands.SpinShooter;
 import frc.robot.commands.turretAim;
+import frc.robot.subsystems.HoodSubsystem;
+import frc.robot.subsystems.IndexerSubsystem;
 import frc.robot.subsystems.IntakeSubsystem;
 import frc.robot.subsystems.OLEDPongSubsystem;
 import frc.robot.subsystems.ShooterSubsystem;
@@ -27,13 +30,15 @@ public class RobotContainer {
 
   // 1. SUBSYSTEMS: Creating the "Body Parts"
   // We create an instance of SwerveSubsystem so we can tell the drivetrain what to do.
-  private final SwerveSubsystem m_swerveSubsystem = new SwerveSubsystem();
+  public final SwerveSubsystem m_swerveSubsystem = new SwerveSubsystem();
 
-  private final TurretSubsystem m_TurretSubsystem = new TurretSubsystem();
-  private final ShooterSubsystem m_ShooterSubsystem = new ShooterSubsystem();
-  private final VisionSubsystem m_VisionSubsystem = new VisionSubsystem(m_swerveSubsystem);
-  private final SpinShooter m_spinShooterCommand = new SpinShooter(m_ShooterSubsystem);
-  private final IntakeSubsystem m_IntakeSubsystem = new IntakeSubsystem();
+  public final TurretSubsystem m_TurretSubsystem = new TurretSubsystem();
+  public final ShooterSubsystem m_ShooterSubsystem = new ShooterSubsystem();
+  public final VisionSubsystem m_VisionSubsystem = new VisionSubsystem(m_swerveSubsystem);
+  public final SpinShooter m_spinShooterCommand = new SpinShooter(m_ShooterSubsystem);
+  public final IntakeSubsystem m_IntakeSubsystem = new IntakeSubsystem();
+  public final HoodSubsystem m_HoodSubsystem = new HoodSubsystem();
+  public final IndexerSubsystem m_IndexerSubsystem = new IndexerSubsystem();
 
   private final SendableChooser<Command> autoChooser;
 
@@ -53,8 +58,13 @@ public class RobotContainer {
 
   public RobotContainer() {
     // Register Named Commands for PathPlanner
-    // This allows you to drag a "Wait and Align" event into your path in the GUI.
+    //Added the command registers for auto.
     com.pathplanner.lib.auto.NamedCommands.registerCommand("VisionAlign", m_VisionSubsystem.visionAlignCommand());
+    com.pathplanner.lib.auto.NamedCommands.registerCommand("ShootSequence", new ShootSequence(m_ShooterSubsystem, m_HoodSubsystem, m_IntakeSubsystem,
+                                                                                                    m_IndexerSubsystem, m_VisionSubsystem::getTurretCameraTargets,
+                                                                                                    m_TurretSubsystem, m_swerveSubsystem::getGyroYaw));
+    com.pathplanner.lib.auto.NamedCommands.registerCommand("Intaking", m_IntakeSubsystem.Intaking());
+    
 
     autoChooser = AutoBuilder.buildAutoChooser();
     SmartDashboard.putData("Auto Chooser", autoChooser);
