@@ -8,6 +8,7 @@ import edu.wpi.first.wpilibj2.command.Command; // New Import
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import frc.robot.Constants.OperatorConstants;
+import frc.robot.commands.PassSequence;
 import frc.robot.commands.ShootSequence;
 import frc.robot.commands.SpinShooter;
 import frc.robot.commands.turretAim;
@@ -118,6 +119,7 @@ public class RobotContainer {
     // In this case, the robot should always be listening to the joysticks to drive.
     m_swerveSubsystem.setDefaultCommand(m_swerveSubsystem.driveFieldOriented(driveInputStream));
     m_IntakeSubsystem.setDefaultCommand(Commands.run(() -> m_IntakeSubsystem.Stop(), m_IntakeSubsystem));
+    m_IndexerSubsystem.setDefaultCommand(Commands.run(() -> m_IndexerSubsystem.Stop(), m_IndexerSubsystem));
 
     // Y BUTTON: Resets the Gyro. 
     // If the robot's "Forward" direction gets confused, the driver points the robot 
@@ -136,8 +138,13 @@ public class RobotContainer {
         m_VisionSubsystem::getTurretCameraTargets,
         m_swerveSubsystem::getGyroYaw));
 
-    // RIGHT TRIGGER: Spin the shooter while held. Releasing stops the shooter.
-    m_driverController.rightTrigger(RIGHT_TRIGGER_THRESHOLD).whileTrue(m_spinShooterCommand);
+    // RIGHT TRIGGER: Spin the shooter while held for scoring. Releasing stops the shooter.
+    m_driverController.rightTrigger(RIGHT_TRIGGER_THRESHOLD).whileTrue(new ShootSequence(m_ShooterSubsystem, m_HoodSubsystem, m_IntakeSubsystem, m_IndexerSubsystem, m_VisionSubsystem::getTurretCameraTargets, m_TurretSubsystem,  m_swerveSubsystem::getGyroYaw));
+    m_driverController.rightTrigger(RIGHT_TRIGGER_THRESHOLD).onFalse(m_IndexerSubsystem.unstuckBalls().withTimeout(1));
+
+    // RIGHT BUMPER: Spin the shooter while held for passing. Releasing stops the shooter.
+    m_driverController.rightBumper().whileTrue(new PassSequence(m_ShooterSubsystem, m_IntakeSubsystem, m_IndexerSubsystem, m_VisionSubsystem::getTurretCameraTargets, m_TurretSubsystem, m_HoodSubsystem, m_swerveSubsystem::getGyroYaw));
+    m_driverController.rightBumper().onFalse(m_IndexerSubsystem.unstuckBalls().withTimeout(1));
 
     // LEFT TRIGGER: Lower intake and spin it keep trying to set intake position while intaking because balls can move it.
     m_driverController.leftTrigger(RIGHT_TRIGGER_THRESHOLD).whileTrue(m_IntakeSubsystem.Intaking());

@@ -1,6 +1,5 @@
 package frc.robot.commands;
 
-
 import java.util.List;
 import java.util.function.Supplier;
 
@@ -15,31 +14,38 @@ import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
-
-public class turretAim extends Command{
+public class turretAim extends Command {
     TurretSubsystem turret;
     Supplier<List<PhotonTrackedTarget>> targetSupplier;
     // Raw Pigeon IMU yaw, used to counter-rotate the turret against chassis spin.
     Supplier<Rotation2d> gyroYawSupplier;
 
-    // IMU yaw from the previous loop, so we can measure how far the chassis just turned.
+    // IMU yaw from the previous loop, so we can measure how far the chassis just
+    // turned.
     private Rotation2d lastGyroYaw = new Rotation2d();
-    // Turret encoder reading from the previous loop, so we can measure how far the turret
+    // Turret encoder reading from the previous loop, so we can measure how far the
+    // turret
     // ACTUALLY moved (used to drain the debt below).
     private double lastTurretAngle = 0.0;
-    // The counter-rotation the turret still OWES the field target, in turret rotations.
-    // Every bit of chassis spin is ADDED here, and it is only DRAINED by how far the turret
-    // physically moved. So if the motor lags, this debt keeps growing -> the position error
-    // keeps growing -> the motor gets a bigger and bigger signal until it catches up.
+    // The counter-rotation the turret still OWES the field target, in turret
+    // rotations.
+    // Every bit of chassis spin is ADDED here, and it is only DRAINED by how far
+    // the turret
+    // physically moved. So if the motor lags, this debt keeps growing -> the
+    // position error
+    // keeps growing -> the motor gets a bigger and bigger signal until it catches
+    // up.
     private double pendingChassisRotations = 0.0;
-    // Whether the target tag was seen on the most recent loop (dashboard readout only).
+    // Whether the target tag was seen on the most recent loop (dashboard readout
+    // only).
     private boolean tagVisible = false;
-    // Cap the debt so a stalled turret can't wind it up forever (the wrap-around handles
+    // Cap the debt so a stalled turret can't wind it up forever (the wrap-around
+    // handles
     // anything past half a turn).
     private static final double kMaxPendingRotations = 1.0;
 
     public turretAim(TurretSubsystem turret, Supplier<List<PhotonTrackedTarget>> targetSupplier,
-                     Supplier<Rotation2d> gyroYawSupplier){
+            Supplier<Rotation2d> gyroYawSupplier) {
         addRequirements(turret);
         this.turret = turret;
         this.targetSupplier = targetSupplier;
@@ -48,7 +54,8 @@ public class turretAim extends Command{
 
     @Override
     public void initialize() {
-        // Seed the baselines so the first loop's deltas aren't huge jumps, and clear the debt.
+        // Seed the baselines so the first loop's deltas aren't huge jumps, and clear
+        // the debt.
         lastGyroYaw = gyroYawSupplier.get();
         lastTurretAngle = turret.getAngle();
         pendingChassisRotations = 0.0;
@@ -56,30 +63,34 @@ public class turretAim extends Command{
 
     /**
      * Choose which full-turn equivalent of {@code desired} the turret should go to.
-     * Every {@code desired + k} (k = whole turret rotations) points the same field direction.
-     *   1. Prefer equivalents INSIDE the clamp window [min, max] (the smaller allowed arc).
-     *   2. If more than one fits (range wider than a full turn), pick the one CLOSEST to the
-     *      turret's current position - the smaller move / correct side.
-     *   3. If none fit, pick the equivalent nearest an edge so setAngle() clamps to the
-     *      correct side instead of winding the long way.
+     * Every {@code desired + k} (k = whole turret rotations) points the same field
+     * direction.
+     * 1. Prefer equivalents INSIDE the clamp window [min, max] (the smaller allowed
+     * arc).
+     * 2. If more than one fits (range wider than a full turn), pick the one CLOSEST
+     * to the
+     * turret's current position - the smaller move / correct side.
+     * 3. If none fit, pick the equivalent nearest an edge so setAngle() clamps to
+     * the
+     * correct side instead of winding the long way.
      */
-    private static double chooseReachableTarget(double desired, double current, double min, double max){
+    private static double chooseReachableTarget(double desired, double current, double min, double max) {
         double best = desired;
         double bestScore = Double.POSITIVE_INFINITY;
         boolean haveInRange = false;
-        for (int k = -2; k <= 2; k++){
+        for (int k = -2; k <= 2; k++) {
             double candidate = desired + k;
             boolean inRange = candidate >= min && candidate <= max;
-            if (inRange){
-                double move = Math.abs(candidate - current);          // smaller move wins
-                if (!haveInRange || move < bestScore){
+            if (inRange) {
+                double move = Math.abs(candidate - current); // smaller move wins
+                if (!haveInRange || move < bestScore) {
                     best = candidate;
                     bestScore = move;
                     haveInRange = true;
                 }
-            } else if (!haveInRange){
+            } else if (!haveInRange) {
                 double edgeDist = Math.min(Math.abs(candidate - min), Math.abs(candidate - max));
-                if (edgeDist < bestScore){                            // nearest to the window
+                if (edgeDist < bestScore) { // nearest to the window
                     best = candidate;
                     bestScore = edgeDist;
                 }
@@ -89,15 +100,18 @@ public class turretAim extends Command{
     }
 
     /**
-     * @return the target tag's yaw in degrees from the turret camera, or 0 if it isn't seen.
-     *     A yaw of 0 also means "already centered", so {@link #tagVisible} is set here to tell
-     *     the two apart on the dashboard. Either way 0 means "no vision correction this loop".
+     * @return the target tag's yaw in degrees from the turret camera, or 0 if it
+     *         isn't seen.
+     *         A yaw of 0 also means "already centered", so {@link #tagVisible} is
+     *         set here to tell
+     *         the two apart on the dashboard. Either way 0 means "no vision
+     *         correction this loop".
      */
-    private double getTagYaw(List<PhotonTrackedTarget> targetstoAim){
+    private double getHubTagYaw(List<PhotonTrackedTarget> targetstoAim) {
         double yawDegrees = 0.0;
         tagVisible = false;
-        for (var target: targetstoAim){
-            if(target.getFiducialId() == TurretConstants.kTargetTagId){
+        for (var target : targetstoAim) {
+            if (target.getFiducialId() == TurretConstants.kHubTagId) {
                 yawDegrees = target.getYaw();
                 tagVisible = true;
             }
@@ -105,8 +119,26 @@ public class turretAim extends Command{
         return yawDegrees;
     }
 
-    public static Boolean ableToShoot(){
-        return MathUtil.isNear(0, getTagYaw(targetstoAim), 5);
+    private double getTrenchTagYaw(List<PhotonTrackedTarget> targetstoAim) {
+        double yawDegrees = 0.0;
+        tagVisible = false;
+        for (var target : targetstoAim) {
+            if (target.getFiducialId() == TurretConstants.kTrenchLeftTagId) {
+                yawDegrees = target.getYaw() - 10;
+                tagVisible = true;
+            } else if (target.getFiducialId() == TurretConstants.kTrenchRightTagId) {
+                yawDegrees = target.getYaw() + 10;
+                tagVisible = true;
+            }
+        }
+        return yawDegrees;
+    }
+
+    public static Boolean ableToShoot() {
+        return MathUtil.isNear(0, getHubTagYaw(targetstoAim), 5);
+    }
+    public static Boolean ableToShootTrench() {
+        return MathUtil.isNear(0, getTrenchTagYaw(targetstoAim), 5);
     }
 
     @Override
@@ -118,8 +150,10 @@ public class turretAim extends Command{
         double chassisDeltaRotations = currentGyroYaw.minus(lastGyroYaw).getRotations();
         lastGyroYaw = currentGyroYaw;
 
-        // The turret is bolted to the chassis, so a +delta spin drags it +delta. It therefore
-        // OWES -delta of counter-rotation to stay pointed at the field target. Add to the debt.
+        // The turret is bolted to the chassis, so a +delta spin drags it +delta. It
+        // therefore
+        // OWES -delta of counter-rotation to stay pointed at the field target. Add to
+        // the debt.
         pendingChassisRotations += chassisDeltaRotations;
 
         // --- 2. Drain the debt ONLY by how far the turret actually moved ---
@@ -128,23 +162,81 @@ public class turretAim extends Command{
         lastTurretAngle = measured;
         pendingChassisRotations -= actualMovement;
 
-        // Anti-windup: never let the debt exceed one turn (wrap-around covers the rest).
+        // Anti-windup: never let the debt exceed one turn (wrap-around covers the
+        // rest).
         pendingChassisRotations = MathUtil.clamp(pendingChassisRotations, -kMaxPendingRotations, kMaxPendingRotations);
 
-        // --- 3. Vision fine-aim (turret camera): FULL proportional correction, re-anchored
-        //        to the measured position each loop (the form that settled cleanly). No gain. ---
-        double tagYawDegrees = getTagYaw(targetSupplier.get());
+        // --- 3. Vision fine-aim (turret camera): FULL proportional correction,
+        // re-anchored
+        // to the measured position each loop (the form that settled cleanly). No gain.
+        // ---
+        double tagYawDegrees = getHubTagYaw(targetSupplier.get());
         double visionRotations = tagYawDegrees / 360.0;
 
-        // Command = where the turret is + counter-rotation still owed + vision correction.
+        // Command = where the turret is + counter-rotation still owed + vision
+        // correction.
         double target = measured + pendingChassisRotations + visionRotations;
 
         // --- 4. Pick the reachable SIDE ---
-        // The desired angle and its full-turn equivalents (+/- whole turret rotations) all
+        // The desired angle and its full-turn equivalents (+/- whole turret rotations)
+        // all
         // point the turret the same way. Choose the one the turret can actually reach.
         target = chooseReachableTarget(target, measured, turret.getClampMin(), turret.getClampMax());
 
-        // setAngle() clamps to the selected limits (single source of truth in the subsystem).
+        // setAngle() clamps to the selected limits (single source of truth in the
+        // subsystem).
+        turret.setAngle(target);
+
+        SmartDashboard.putNumber("TurretDiag/Aim Target (deg)", target * 360.0);
+        SmartDashboard.putNumber("TurretDiag/Aim Tag Yaw (deg)", tagYawDegrees);
+        SmartDashboard.putNumber("TurretDiag/Aim Chassis Delta (deg)", chassisDeltaRotations * 360.0);
+        SmartDashboard.putNumber("TurretDiag/Aim Pending Debt (deg)", pendingChassisRotations * 360.0);
+        SmartDashboard.putBoolean("TurretDiag/Aim Tag Visible", tagVisible);
+    }
+
+    public void executePass() {
+        // --- 1. Accumulate the chassis spin (Pigeon IMU) into the debt ---
+        // How far the robot rotated since last loop (CCW-positive). Rotation2d.minus()
+        // handles the 180/-180 wraparound for us.
+        Rotation2d currentGyroYaw = gyroYawSupplier.get();
+        double chassisDeltaRotations = currentGyroYaw.minus(lastGyroYaw).getRotations();
+        lastGyroYaw = currentGyroYaw;
+
+        // The turret is bolted to the chassis, so a +delta spin drags it +delta. It
+        // therefore
+        // OWES -delta of counter-rotation to stay pointed at the field target. Add to
+        // the debt.
+        pendingChassisRotations += chassisDeltaRotations;
+
+        // --- 2. Drain the debt ONLY by how far the turret actually moved ---
+        double measured = turret.getAngle();
+        double actualMovement = measured - lastTurretAngle;
+        lastTurretAngle = measured;
+        pendingChassisRotations -= actualMovement;
+
+        // Anti-windup: never let the debt exceed one turn (wrap-around covers the
+        // rest).
+        pendingChassisRotations = MathUtil.clamp(pendingChassisRotations, -kMaxPendingRotations, kMaxPendingRotations);
+
+        // --- 3. Vision fine-aim (turret camera): FULL proportional correction,
+        // re-anchored
+        // to the measured position each loop (the form that settled cleanly). No gain.
+        // ---
+        double tagYawDegrees = getTrenchTagYaw(targetSupplier.get());
+        double visionRotations = tagYawDegrees / 360.0;
+
+        // Command = where the turret is + counter-rotation still owed + vision
+        // correction.
+        double target = measured + pendingChassisRotations + visionRotations;
+
+        // --- 4. Pick the reachable SIDE ---
+        // The desired angle and its full-turn equivalents (+/- whole turret rotations)
+        // all
+        // point the turret the same way. Choose the one the turret can actually reach.
+        target = chooseReachableTarget(target, measured, turret.getClampMin(), turret.getClampMax());
+
+        // setAngle() clamps to the selected limits (single source of truth in the
+        // subsystem).
         turret.setAngle(target);
 
         SmartDashboard.putNumber("TurretDiag/Aim Target (deg)", target * 360.0);

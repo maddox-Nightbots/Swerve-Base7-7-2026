@@ -79,7 +79,10 @@ public final class Constants {
 
     // --- Vision aiming ---
     final static Optional<Alliance> alliance = DriverStation.getAlliance();
-    public static final int kTargetTagId = (alliance.get() == Alliance.Red ? 6 : 6); // AprilTag the turret aims at
+    public static final int kHubTagId = (alliance.get() == Alliance.Red ? 6 : 6); // AprilTag the turret aims at
+    public static final int kTrenchLeftTagId = (alliance.get() == Alliance.Red ? 6 : 6); // AprilTag the turret aims at
+    public static final int kTrenchRightTagId = (alliance.get() == Alliance.Red ? 6 : 6); // AprilTag the turret aims at
+  
   }
   /**
    * Everything the PhotonVision-based {@code VisionSubsystem} needs.

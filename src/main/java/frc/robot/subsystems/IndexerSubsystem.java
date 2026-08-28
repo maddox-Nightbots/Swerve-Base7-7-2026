@@ -4,16 +4,8 @@ import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.controls.VelocityVoltage;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.NeutralModeValue;
-import static com.revrobotics.PersistMode.kPersistParameters;
-import static com.revrobotics.ResetMode.kResetSafeParameters;
-import com.revrobotics.spark.SparkBase.ControlType;
-import com.revrobotics.spark.SparkClosedLoopController;
-import com.revrobotics.spark.SparkLowLevel.MotorType;
-import com.revrobotics.spark.SparkMax;
-import com.revrobotics.spark.config.SparkMaxConfig;
 
 import edu.wpi.first.wpilibj2.command.Command;
-import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
 /*import frc.robot.LimelightHelpers;*/
@@ -22,29 +14,16 @@ public class IndexerSubsystem extends SubsystemBase {
 
     //create motors
     private final TalonFX IndexerMotor;
-    private final SparkMax FeederMotor;
 
 
     private final VelocityVoltage IndexervelocityRequest = new VelocityVoltage(0);
 
-    private final SparkClosedLoopController feederpidController;
 
 
     public IndexerSubsystem() {
 
         //config motors
         IndexerMotor = new TalonFX(5);
-        FeederMotor = new SparkMax(6, MotorType.kBrushless);
-
-        //config Feeder motor
-        SparkMaxConfig feederConfig = new SparkMaxConfig();
-
-        feederConfig.inverted(true);
-        feederConfig.idleMode(SparkMaxConfig.IdleMode.kBrake);
-
-        feederConfig.smartCurrentLimit(40);
-        feederConfig.closedLoop.p(0.0002).i(0.000001).d(0.0004);
-        FeederMotor.configure(feederConfig, kResetSafeParameters, kPersistParameters);
 
         TalonFXConfiguration IndexerConfig = new TalonFXConfiguration();
           // Match the 40A baseline to protect your robot battery during high loads
@@ -61,7 +40,6 @@ public class IndexerSubsystem extends SubsystemBase {
         // Apply configs to Kraken
         IndexerMotor.getConfigurator().apply(IndexerConfig);
 
-        feederpidController = FeederMotor.getClosedLoopController();
 
     }
 
@@ -77,23 +55,19 @@ public class IndexerSubsystem extends SubsystemBase {
         IndexerMotor.setControl(IndexervelocityRequest.withVelocity(targetRPS));
     }
 
-    public void setFeederVelocityRPM(double targetRPM){
-        feederpidController.setSetpoint(targetRPM, ControlType.kVelocity);
-    }
-
     public Command SpinIndexer(){
         return this.run(() -> {
             this.setIndexerVelocityRPM(2000);
         });
     }
 
-    public Command SpinFeeder(){
-        return this.run(() -> {
-            this.setFeederVelocityRPM(2000);
+    public Command unstuckBalls(){
+        return this.runOnce(() -> {
+            this.setIndexerVelocityRPM(-2000);
         });
     }
 
-    public Command SpinIndexerShoot(){
-        return Commands.parallel(SpinFeeder(),SpinIndexer());
+    public void Stop(){
+        IndexerMotor.stopMotor();
     }
 }
