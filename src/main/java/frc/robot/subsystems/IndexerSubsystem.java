@@ -4,6 +4,13 @@ import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.controls.VelocityVoltage;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.NeutralModeValue;
+import static com.revrobotics.PersistMode.kPersistParameters;
+import static com.revrobotics.ResetMode.kResetSafeParameters;
+import com.revrobotics.spark.SparkBase.ControlType;
+import com.revrobotics.spark.SparkClosedLoopController;
+import com.revrobotics.spark.SparkLowLevel.MotorType;
+import com.revrobotics.spark.SparkMax;
+import com.revrobotics.spark.config.SparkMaxConfig;
 
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
@@ -14,11 +21,12 @@ public class IndexerSubsystem extends SubsystemBase {
 
     //create motors
     private final TalonFX IndexerMotor;
+    private final SparkMax FeederMotor;
 
 
     private final VelocityVoltage IndexervelocityRequest = new VelocityVoltage(0);
 
-
+    private final SparkClosedLoopController FeederController;
 
     public IndexerSubsystem() {
 
@@ -40,7 +48,19 @@ public class IndexerSubsystem extends SubsystemBase {
         // Apply configs to Kraken
         IndexerMotor.getConfigurator().apply(IndexerConfig);
 
+        FeederMotor = new SparkMax(2, MotorType.kBrushless);
 
+        //config arm motor
+        SparkMaxConfig FeederConfig = new SparkMaxConfig();
+
+        FeederConfig.inverted(true);
+        FeederConfig.idleMode(SparkMaxConfig.IdleMode.kBrake);
+
+        FeederConfig.smartCurrentLimit(40);
+        FeederConfig.closedLoop.p(0.0025).i(0.000001).d(0.0004);
+        FeederMotor.configure(FeederConfig, kResetSafeParameters, kPersistParameters);
+
+        FeederController = FeederMotor.getClosedLoopController();
     }
 
     /**
@@ -53,6 +73,8 @@ public class IndexerSubsystem extends SubsystemBase {
 
         // Use the request object to smoothly command the motor
         IndexerMotor.setControl(IndexervelocityRequest.withVelocity(targetRPS));
+
+        FeederController.setSetpoint(targetRPM, ControlType.kVelocity);
     }
 
     public Command SpinIndexer(){
