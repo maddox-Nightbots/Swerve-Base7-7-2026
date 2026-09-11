@@ -1,23 +1,19 @@
 package frc.robot.subsystems;
 
 
-import edu.wpi.first.math.MathUtil;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
-
-import com.revrobotics.spark.SparkMax;
-import com.revrobotics.spark.config.SparkMaxConfig;
+import static com.revrobotics.PersistMode.kPersistParameters;
+import static com.revrobotics.ResetMode.kResetSafeParameters;
 import com.revrobotics.spark.SparkBase.ControlType;
 import com.revrobotics.spark.SparkClosedLoopController;
 import com.revrobotics.spark.SparkLowLevel.MotorType;
+import com.revrobotics.spark.SparkMax;
+import com.revrobotics.spark.config.SparkMaxConfig;
 
-import edu.wpi.first.wpilibj2.command.Command;
-import edu.wpi.first.wpilibj2.command.Commands;
+import edu.wpi.first.math.MathUtil;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants;
 import frc.robot.Constants.HoodConstants;
-
-import static com.revrobotics.PersistMode.kPersistParameters;
-import static com.revrobotics.ResetMode.kResetSafeParameters;
 
 public final class HoodSubsystem extends SubsystemBase{
     private final SparkMax hoodMotor;
@@ -33,7 +29,7 @@ public final class HoodSubsystem extends SubsystemBase{
 
     public HoodSubsystem() 
     {
-        hoodMotor = new SparkMax(7, MotorType.kBrushless);
+        hoodMotor = new SparkMax(50, MotorType.kBrushless);
         setPosition(currentPosition);
 
         //config arm motor

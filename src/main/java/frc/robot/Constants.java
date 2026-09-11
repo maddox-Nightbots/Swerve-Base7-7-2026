@@ -39,11 +39,7 @@ public final class Constants {
   
   public static class ShooterConstants {
 
-    public static final int actuatorLeftServo = 0;
-    public static final int actuatorRightServo = 0;
-    public static final int shooterMotorLeftID = 2;
-    public static final int TurnMotorID = 1;
-    public static final double gearRatio = 1;
+    public static final int shooterMotorLeftID = 51;
 
   }
 
@@ -52,12 +48,11 @@ public final class Constants {
    */
   public static class TurretConstants {
     // --- Hardware ---
-    public static final int kTurnMotorID = 1;          // CAN ID of the turret SparkMax
+    public static final int kTurnMotorID = 52;          // CAN ID of the turret SparkMax
     public static final double kTurretGearTeeth = 200.0; // teeth on the turret ring gear
     public static final double kMotorGearTeeth = 14.0;   // teeth on the motor pinion
     // Motor rotations per one full turret rotation (encoder counts motor shaft rotations).
     public static final double kMotorRotationsPerTurretRotation = kTurretGearTeeth / kMotorGearTeeth;
-
     // --- SAFETY: absolute turret backstop (in TURRET rotations, symmetric about boot position) ---
     // The wiring on the moving part of the turret CANNOT wind past this without damage. This is
     // the WIDEST the turret can ever go; the hand-taught clamps operate inside it. Enforced in

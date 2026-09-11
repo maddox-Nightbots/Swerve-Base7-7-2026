@@ -44,8 +44,8 @@ public class IntakeSubsystem extends SubsystemBase {
     public IntakeSubsystem() {
 
         //config motors
-        intakeMotor = new TalonFX(6);
-        armMotor = new SparkMax(5, MotorType.kBrushless);
+        intakeMotor = new TalonFX(56);
+        armMotor = new SparkMax(55, MotorType.kBrushless);
 
         //config arm motor
         SparkMaxConfig armConfig = new SparkMaxConfig();

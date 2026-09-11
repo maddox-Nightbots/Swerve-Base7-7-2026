@@ -43,7 +43,7 @@ public class PrepareShot extends Command   {
 
     private double getTagDistanceMeters(List<PhotonTrackedTarget> targetstoAim){
         for (var target: targetstoAim){
-            if(target.getFiducialId() == TurretConstants.kTargetTagId){
+            if(target.getFiducialId() == TurretConstants.kHubTagId){
 
             // Calculate distance using PhotonUtils
             return PhotonUtils.calculateDistanceToTargetMeters(

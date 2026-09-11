@@ -16,7 +16,7 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 public class turretAim extends Command {
     TurretSubsystem turret;
-    Supplier<List<PhotonTrackedTarget>> targetSupplier;
+    static Supplier<List<PhotonTrackedTarget>> targetSupplier;
     // Raw Pigeon IMU yaw, used to counter-rotate the turret against chassis spin.
     Supplier<Rotation2d> gyroYawSupplier;
 
@@ -38,7 +38,7 @@ public class turretAim extends Command {
     private double pendingChassisRotations = 0.0;
     // Whether the target tag was seen on the most recent loop (dashboard readout
     // only).
-    private boolean tagVisible = false;
+    private static boolean tagVisible = false;
     // Cap the debt so a stalled turret can't wind it up forever (the wrap-around
     // handles
     // anything past half a turn).
@@ -107,7 +107,7 @@ public class turretAim extends Command {
      *         the two apart on the dashboard. Either way 0 means "no vision
      *         correction this loop".
      */
-    private double getHubTagYaw(List<PhotonTrackedTarget> targetstoAim) {
+    private static double getHubTagYaw(List<PhotonTrackedTarget> targetstoAim) {
         double yawDegrees = 0.0;
         tagVisible = false;
         for (var target : targetstoAim) {
@@ -119,7 +119,7 @@ public class turretAim extends Command {
         return yawDegrees;
     }
 
-    private double getTrenchTagYaw(List<PhotonTrackedTarget> targetstoAim) {
+    private static double getTrenchTagYaw(List<PhotonTrackedTarget> targetstoAim) {
         double yawDegrees = 0.0;
         tagVisible = false;
         for (var target : targetstoAim) {
@@ -135,10 +135,10 @@ public class turretAim extends Command {
     }
 
     public static Boolean ableToShoot() {
-        return MathUtil.isNear(0, getHubTagYaw(targetstoAim), 5);
+        return MathUtil.isNear(0, getHubTagYaw(targetSupplier.get()), 5);
     }
     public static Boolean ableToShootTrench() {
-        return MathUtil.isNear(0, getTrenchTagYaw(targetstoAim), 5);
+        return MathUtil.isNear(0, getTrenchTagYaw(targetSupplier.get()), 5);
     }
 
     @Override

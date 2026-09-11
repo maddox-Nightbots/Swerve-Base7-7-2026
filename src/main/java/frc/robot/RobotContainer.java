@@ -128,7 +128,7 @@ public class RobotContainer {
 
     // B BUTTON: "Parking Brake" / Lock Pose.
     // While the driver holds B, the wheels turn into an 'X' shape so the robot cannot be pushed.
-    m_driverController.b().whileTrue(m_swerveSubsystem.lockPoseCommand());
+    m_driverController.x().whileTrue(m_swerveSubsystem.lockPoseCommand());
 
     // A BUTTON: Turret aim. Tracks tag 6 with the turret camera AND counter-rotates
     // against chassis spin (Pigeon IMU) so the aim holds when the robot turns.
@@ -137,6 +137,9 @@ public class RobotContainer {
         m_TurretSubsystem,
         m_VisionSubsystem::getTurretCameraTargets,
         m_swerveSubsystem::getGyroYaw));
+
+    // Set hood postion for test
+    m_driverController.b().onTrue(Commands.runOnce(() -> m_HoodSubsystem.setPosition(0.3), m_HoodSubsystem));
 
     // RIGHT TRIGGER: Spin the shooter while held for scoring. Releasing stops the shooter.
     m_driverController.rightTrigger(RIGHT_TRIGGER_THRESHOLD).whileTrue(new ShootSequence(m_ShooterSubsystem, m_HoodSubsystem, m_IntakeSubsystem, m_IndexerSubsystem, m_VisionSubsystem::getTurretCameraTargets, m_TurretSubsystem,  m_swerveSubsystem::getGyroYaw));

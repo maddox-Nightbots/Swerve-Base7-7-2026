@@ -31,7 +31,7 @@ public class IndexerSubsystem extends SubsystemBase {
     public IndexerSubsystem() {
 
         //config motors
-        IndexerMotor = new TalonFX(5);
+        IndexerMotor = new TalonFX(54);
 
         TalonFXConfiguration IndexerConfig = new TalonFXConfiguration();
           // Match the 40A baseline to protect your robot battery during high loads
