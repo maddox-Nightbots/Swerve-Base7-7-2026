@@ -20,8 +20,8 @@ public final class HoodSubsystem extends SubsystemBase{
 
     @SuppressWarnings("FieldMayBeFinal")
 
-    private double currentPosition = 0.5;
-    private double targetPosition = 0.5;
+    private double currentPosition = 0;
+    private double targetPosition = 0.3;
     
     private static final double kPositionTolerance = 0.01;
 
@@ -30,7 +30,7 @@ public final class HoodSubsystem extends SubsystemBase{
     public HoodSubsystem() 
     {
         hoodMotor = new SparkMax(50, MotorType.kBrushless);
-        setPosition(currentPosition);
+       
 
         //config arm motor
         SparkMaxConfig hoodConfig = new SparkMaxConfig();
@@ -38,8 +38,8 @@ public final class HoodSubsystem extends SubsystemBase{
         hoodConfig.inverted(true);
         hoodConfig.idleMode(SparkMaxConfig.IdleMode.kBrake);
 
-        hoodConfig.smartCurrentLimit(30);
-        hoodConfig.closedLoop.p(0.0002).i(0.000001).d(0.0004);
+        hoodConfig.smartCurrentLimit(20);
+        hoodConfig.closedLoop.p(3).i(0.000001).d(0.000);
         hoodMotor.configure(hoodConfig, kResetSafeParameters, kPersistParameters);
         hoodpidController = hoodMotor.getClosedLoopController();
     }

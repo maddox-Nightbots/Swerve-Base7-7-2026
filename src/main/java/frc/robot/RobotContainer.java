@@ -148,11 +148,13 @@ public class RobotContainer {
     // RIGHT BUMPER: Spin the shooter while held for passing. Releasing stops the shooter.
     m_driverController.rightBumper().whileTrue(new PassSequence(m_ShooterSubsystem, m_IntakeSubsystem, m_IndexerSubsystem, m_VisionSubsystem::getTurretCameraTargets, m_TurretSubsystem, m_HoodSubsystem, m_swerveSubsystem::getGyroYaw));
     m_driverController.rightBumper().onFalse(m_IndexerSubsystem.unstuckBalls().withTimeout(1));
+    m_driverController.povRight().whileTrue(new SpinShooter(m_ShooterSubsystem));
 
     // LEFT TRIGGER: Lower intake and spin it keep trying to set intake position while intaking because balls can move it.
     m_driverController.leftTrigger(RIGHT_TRIGGER_THRESHOLD).whileTrue(m_IntakeSubsystem.Intaking());
     m_driverController.leftTrigger(RIGHT_TRIGGER_THRESHOLD).whileFalse(Commands.run(() -> m_IntakeSubsystem.intaking=false));
-
+    
+    m_driverController.leftBumper().whileTrue(Commands.run(() -> m_IntakeSubsystem.setVelocityRPM(2000)));
     // manual arm controlls for bench-testing the lower limit switch.
     // D-pad up drives the arm up, D-pad down drives it down (blocked at the switch).
     // Restore the line below when the test is done:

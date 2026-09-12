@@ -39,10 +39,6 @@ public class turretAim extends Command {
     // Whether the target tag was seen on the most recent loop (dashboard readout
     // only).
     private static boolean tagVisible = false;
-    // Cap the debt so a stalled turret can't wind it up forever (the wrap-around
-    // handles
-    // anything past half a turn).
-    private static final double kMaxPendingRotations = 1.0;
 
     public turretAim(TurretSubsystem turret, Supplier<List<PhotonTrackedTarget>> targetSupplier,
             Supplier<Rotation2d> gyroYawSupplier) {
@@ -59,44 +55,6 @@ public class turretAim extends Command {
         lastGyroYaw = gyroYawSupplier.get();
         lastTurretAngle = turret.getAngle();
         pendingChassisRotations = 0.0;
-    }
-
-    /**
-     * Choose which full-turn equivalent of {@code desired} the turret should go to.
-     * Every {@code desired + k} (k = whole turret rotations) points the same field
-     * direction.
-     * 1. Prefer equivalents INSIDE the clamp window [min, max] (the smaller allowed
-     * arc).
-     * 2. If more than one fits (range wider than a full turn), pick the one CLOSEST
-     * to the
-     * turret's current position - the smaller move / correct side.
-     * 3. If none fit, pick the equivalent nearest an edge so setAngle() clamps to
-     * the
-     * correct side instead of winding the long way.
-     */
-    private static double chooseReachableTarget(double desired, double current, double min, double max) {
-        double best = desired;
-        double bestScore = Double.POSITIVE_INFINITY;
-        boolean haveInRange = false;
-        for (int k = -2; k <= 2; k++) {
-            double candidate = desired + k;
-            boolean inRange = candidate >= min && candidate <= max;
-            if (inRange) {
-                double move = Math.abs(candidate - current); // smaller move wins
-                if (!haveInRange || move < bestScore) {
-                    best = candidate;
-                    bestScore = move;
-                    haveInRange = true;
-                }
-            } else if (!haveInRange) {
-                double edgeDist = Math.min(Math.abs(candidate - min), Math.abs(candidate - max));
-                if (edgeDist < bestScore) { // nearest to the window
-                    best = candidate;
-                    bestScore = edgeDist;
-                }
-            }
-        }
-        return best;
     }
 
     /**
@@ -162,9 +120,11 @@ public class turretAim extends Command {
         lastTurretAngle = measured;
         pendingChassisRotations -= actualMovement;
 
-        // Anti-windup: never let the debt exceed one turn (wrap-around covers the
-        // rest).
-        pendingChassisRotations = MathUtil.clamp(pendingChassisRotations, -kMaxPendingRotations, kMaxPendingRotations);
+        // Anti-windup: only keep debt the turret can actually pay without leaving the taught
+        // clamps. If it sits pinned at a clamp while the robot keeps turning, extra debt would
+        // otherwise pile up and later yank the turret across its range.
+        pendingChassisRotations = MathUtil.clamp(pendingChassisRotations,
+            turret.getClampMin() - measured, turret.getClampMax() - measured);
 
         // --- 3. Vision fine-aim (turret camera): FULL proportional correction,
         // re-anchored
@@ -177,14 +137,10 @@ public class turretAim extends Command {
         // correction.
         double target = measured + pendingChassisRotations + visionRotations;
 
-        // --- 4. Pick the reachable SIDE ---
-        // The desired angle and its full-turn equivalents (+/- whole turret rotations)
-        // all
-        // point the turret the same way. Choose the one the turret can actually reach.
-        target = chooseReachableTarget(target, measured, turret.getClampMin(), turret.getClampMax());
-
-        // setAngle() clamps to the selected limits (single source of truth in the
-        // subsystem).
+        // --- 4. Stay inside the taught clamps ---
+        // No wrap-around: a target past a clamp just holds at that clamp, it never jumps to
+        // the other end of the range. setAngle() does the clamping (single source of truth
+        // in the subsystem).
         turret.setAngle(target);
 
         SmartDashboard.putNumber("TurretDiag/Aim Target (deg)", target * 360.0);
@@ -214,9 +170,11 @@ public class turretAim extends Command {
         lastTurretAngle = measured;
         pendingChassisRotations -= actualMovement;
 
-        // Anti-windup: never let the debt exceed one turn (wrap-around covers the
-        // rest).
-        pendingChassisRotations = MathUtil.clamp(pendingChassisRotations, -kMaxPendingRotations, kMaxPendingRotations);
+        // Anti-windup: only keep debt the turret can actually pay without leaving the taught
+        // clamps. If it sits pinned at a clamp while the robot keeps turning, extra debt would
+        // otherwise pile up and later yank the turret across its range.
+        pendingChassisRotations = MathUtil.clamp(pendingChassisRotations,
+            turret.getClampMin() - measured, turret.getClampMax() - measured);
 
         // --- 3. Vision fine-aim (turret camera): FULL proportional correction,
         // re-anchored
@@ -229,14 +187,10 @@ public class turretAim extends Command {
         // correction.
         double target = measured + pendingChassisRotations + visionRotations;
 
-        // --- 4. Pick the reachable SIDE ---
-        // The desired angle and its full-turn equivalents (+/- whole turret rotations)
-        // all
-        // point the turret the same way. Choose the one the turret can actually reach.
-        target = chooseReachableTarget(target, measured, turret.getClampMin(), turret.getClampMax());
-
-        // setAngle() clamps to the selected limits (single source of truth in the
-        // subsystem).
+        // --- 4. Stay inside the taught clamps ---
+        // No wrap-around: a target past a clamp just holds at that clamp, it never jumps to
+        // the other end of the range. setAngle() does the clamping (single source of truth
+        // in the subsystem).
         turret.setAngle(target);
 
         SmartDashboard.putNumber("TurretDiag/Aim Target (deg)", target * 360.0);

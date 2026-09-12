@@ -5,7 +5,7 @@ import edu.wpi.first.wpilibj2.command.Command;
 import frc.robot.subsystems.ShooterSubsystem;
 
 public class SpinShooter extends Command {
-    private static final double SHOOTER_RPM = 3000.0;
+    private static final double SHOOTER_RPM = -3000.0;
 
     private final ShooterSubsystem shooter;
 

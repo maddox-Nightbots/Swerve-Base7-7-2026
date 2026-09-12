@@ -44,7 +44,8 @@ public class IntakeSubsystem extends SubsystemBase {
     public IntakeSubsystem() {
 
         //config motors
-        intakeMotor = new TalonFX(56);
+        // null when disabled in Constants, so every use below must check for null
+        intakeMotor = IntakeConstants.kEnableIntakeRollerTalon ? new TalonFX(56) : null;
         armMotor = new SparkMax(55, MotorType.kBrushless);
 
         //config arm motor
@@ -70,7 +71,9 @@ public class IntakeSubsystem extends SubsystemBase {
         intakeConfig.Slot0.kD = 0.0;   // Derivative gain (helps reduce overshoot)
 
         // Apply configs to Kraken
-        intakeMotor.getConfigurator().apply(intakeConfig);
+        if (intakeMotor != null) {
+            intakeMotor.getConfigurator().apply(intakeConfig);
+        }
 
         intakepidController = armMotor.getClosedLoopController();
         armEncoder = armMotor.getEncoder();
@@ -102,7 +105,9 @@ public class IntakeSubsystem extends SubsystemBase {
         double targetRPS = targetRPM / 60.0;
 
         // Use the request object to smoothly command the motor
-        intakeMotor.setControl(intakevelocityRequest.withVelocity(targetRPS));
+        if (intakeMotor != null) {
+            intakeMotor.setControl(intakevelocityRequest.withVelocity(targetRPS));
+        }
     }
 
     public void setIntakePosition(double position) {

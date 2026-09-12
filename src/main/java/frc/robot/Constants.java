@@ -74,7 +74,7 @@ public final class Constants {
 
     // --- Vision aiming ---
     final static Optional<Alliance> alliance = DriverStation.getAlliance();
-    public static final int kHubTagId = (alliance.get() == Alliance.Red ? 6 : 6); // AprilTag the turret aims at
+    public static final int kHubTagId = (alliance.get() == Alliance.Red ? 32 : 32); // AprilTag the turret aims at
     public static final int kTrenchLeftTagId = (alliance.get() == Alliance.Red ? 6 : 6); // AprilTag the turret aims at
     public static final int kTrenchRightTagId = (alliance.get() == Alliance.Red ? 6 : 6); // AprilTag the turret aims at
   
@@ -113,7 +113,17 @@ public final class Constants {
     // Ignore any estimate whose average tag distance is beyond this (meters).
     public static final double kMaxAverageTagDistanceMeters = 4.0;
   }
+  public static class IndexerConstants {
+    // TEMPORARY: set false to skip the indexer Kraken (TalonFX 54) entirely while it isn't
+    // answering on CAN. The feeder SparkMax still runs. Set back to true once it's fixed.
+    public static final boolean kEnableIndexerTalon = true;
+  }
+
   public static class IntakeConstants {
+
+    // TEMPORARY: set false to skip the intake roller Kraken (TalonFX 56) entirely while it
+    // isn't answering on CAN. The arm SparkMax still runs. Set back to true once it's fixed.
+    public static final boolean kEnableIntakeRollerTalon = true;
 
     public static final double gearRatio = 25*32 / 12;
     public static final double IntakeDownPosition = -0.25;
@@ -138,8 +148,11 @@ public final class Constants {
   }
 
   public static class HoodConstants {
-    public static final double gearRatio = 5;
-    public static final double HoodDownPosition = 0.25;
-    public static final double HoodUpPosition = 0.1;
+    // The real hood reduction is about 10:1, but we deliberately leave it at 1 so every hood
+    // position (clamps, setpoints, the PrepareShot tree map, "Hood Position" on the dashboard)
+    // is in raw MOTOR rotations. That keeps the tuned tree map numbers direct.
+    public static final double gearRatio = 1;
+    public static final double HoodDownPosition = 0;
+    public static final double HoodUpPosition = 0.5;
   }
 }
