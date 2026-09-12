@@ -13,6 +13,7 @@ import org.photonvision.targeting.PhotonTrackedTarget;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+// import edu.wpi.first.wpilibj.sysid.SysIdRoutineLog.State;
 
 public class turretAim extends Command {
     TurretSubsystem turret;
@@ -39,12 +40,16 @@ public class turretAim extends Command {
     // Whether the target tag was seen on the most recent loop (dashboard readout
     // only).
     private static boolean tagVisible = false;
+    private static boolean tagVisibleTrench = false;
+
+    private static double  lastTagYaw = 0.0;
+    private static double  lastTagYawTrench = 0.0;
 
     public turretAim(TurretSubsystem turret, Supplier<List<PhotonTrackedTarget>> targetSupplier,
             Supplier<Rotation2d> gyroYawSupplier) {
         addRequirements(turret);
         this.turret = turret;
-        this.targetSupplier = targetSupplier;
+        turretAim.targetSupplier = targetSupplier;
         this.gyroYawSupplier = gyroYawSupplier;
     }
 
@@ -72,6 +77,7 @@ public class turretAim extends Command {
             if (target.getFiducialId() == TurretConstants.kHubTagId) {
                 yawDegrees = target.getYaw();
                 tagVisible = true;
+                lastTagYaw = yawDegrees;
             }
         }
         return yawDegrees;
@@ -83,10 +89,11 @@ public class turretAim extends Command {
         for (var target : targetstoAim) {
             if (target.getFiducialId() == TurretConstants.kTrenchLeftTagId) {
                 yawDegrees = target.getYaw() - 10;
-                tagVisible = true;
+                tagVisibleTrench = true;
             } else if (target.getFiducialId() == TurretConstants.kTrenchRightTagId) {
                 yawDegrees = target.getYaw() + 10;
-                tagVisible = true;
+                tagVisibleTrench = true;
+                lastTagYawTrench = yawDegrees;
             }
         }
         return yawDegrees;
@@ -112,7 +119,13 @@ public class turretAim extends Command {
         // therefore
         // OWES -delta of counter-rotation to stay pointed at the field target. Add to
         // the debt.
-        pendingChassisRotations += chassisDeltaRotations;
+        //If the tag is no longer visible it needs to add the last tag yaw, then reset last tag yaw to the pending rotation.
+        if(!tagVisible){
+            pendingChassisRotations += chassisDeltaRotations + lastTagYaw;
+            lastTagYaw = 0.0;
+        } else {
+            pendingChassisRotations += chassisDeltaRotations;
+        }
 
         // --- 2. Drain the debt ONLY by how far the turret actually moved ---
         double measured = turret.getAngle();
@@ -162,7 +175,12 @@ public class turretAim extends Command {
         // therefore
         // OWES -delta of counter-rotation to stay pointed at the field target. Add to
         // the debt.
-        pendingChassisRotations += chassisDeltaRotations;
+        if(!tagVisibleTrench){
+            pendingChassisRotations += chassisDeltaRotations + lastTagYawTrench;
+            lastTagYawTrench = 0.0;
+        } else {
+            pendingChassisRotations += chassisDeltaRotations;
+        }
 
         // --- 2. Drain the debt ONLY by how far the turret actually moved ---
         double measured = turret.getAngle();
