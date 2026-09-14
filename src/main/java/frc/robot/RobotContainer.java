@@ -35,11 +35,12 @@ public class RobotContainer {
 
   public final TurretSubsystem m_TurretSubsystem = new TurretSubsystem();
   public final ShooterSubsystem m_ShooterSubsystem = new ShooterSubsystem();
+    public final IndexerSubsystem m_IndexerSubsystem = new IndexerSubsystem();
   public final VisionSubsystem m_VisionSubsystem = new VisionSubsystem(m_swerveSubsystem);
-  public final SpinShooter m_spinShooterCommand = new SpinShooter(m_ShooterSubsystem);
+  public final SpinShooter m_spinShooterCommand = new SpinShooter(m_ShooterSubsystem, m_IndexerSubsystem);
   public final IntakeSubsystem m_IntakeSubsystem = new IntakeSubsystem();
   public final HoodSubsystem m_HoodSubsystem = new HoodSubsystem();
-  public final IndexerSubsystem m_IndexerSubsystem = new IndexerSubsystem();
+
 
   private final SendableChooser<Command> autoChooser;
 
@@ -148,7 +149,7 @@ public class RobotContainer {
     // RIGHT BUMPER: Spin the shooter while held for passing. Releasing stops the shooter.
     m_driverController.rightBumper().whileTrue(new PassSequence(m_ShooterSubsystem, m_IntakeSubsystem, m_IndexerSubsystem, m_VisionSubsystem::getTurretCameraTargets, m_TurretSubsystem, m_HoodSubsystem, m_swerveSubsystem::getGyroYaw));
     m_driverController.rightBumper().onFalse(m_IndexerSubsystem.unstuckBalls().withTimeout(1));
-    m_driverController.povRight().whileTrue(new SpinShooter(m_ShooterSubsystem));
+    m_driverController.povRight().whileTrue(m_spinShooterCommand);
 
     // LEFT TRIGGER: Lower intake and spin it keep trying to set intake position while intaking because balls can move it.
     m_driverController.leftTrigger(RIGHT_TRIGGER_THRESHOLD).whileTrue(m_IntakeSubsystem.Intaking());

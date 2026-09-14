@@ -2,16 +2,19 @@ package frc.robot.commands;
 
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
+import frc.robot.subsystems.IndexerSubsystem;
 import frc.robot.subsystems.ShooterSubsystem;
 
 public class SpinShooter extends Command {
-    private static final double SHOOTER_RPM = -3000.0;
+    private static final double SHOOTER_RPM = -2200.0;
 
     private final ShooterSubsystem shooter;
+    private final IndexerSubsystem indexer;
 
-    public SpinShooter(ShooterSubsystem shooter) {
+    public SpinShooter(ShooterSubsystem shooter, IndexerSubsystem indexer) {
         this.shooter = shooter;
-        addRequirements(shooter);
+        this.indexer = indexer;
+        addRequirements(shooter, indexer);
     }
 
     public boolean isReadyToShoot() {
@@ -22,6 +25,7 @@ public class SpinShooter extends Command {
     public void initialize() {
         SmartDashboard.putBoolean("Shooter/Spin Command Active", true);
         shooter.setShooterRPM(SHOOTER_RPM);
+        indexer.setJustIndexerVelocityRPM(-2500);
     }
 
     @Override

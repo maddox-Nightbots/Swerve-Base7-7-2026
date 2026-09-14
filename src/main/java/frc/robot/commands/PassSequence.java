@@ -35,11 +35,11 @@ public class PassSequence extends SequentialCommandGroup{
         addCommands(
             Commands.runOnce(() -> hood.setPosition(Constants.HoodConstants.HoodUpPosition)),
             new turretAim( turret, targetSupplier, gyroYawSupplier),
-            new SpinShooter(shooter).onlyIf(() -> turretAim.ableToShoot()), 
+            new SpinShooter(shooter,indexer).onlyIf(() -> turretAim.ableToShoot()), 
             intake.IntakeUpDown().repeatedly(),
             Commands.parallel(
-                new SpinShooter(shooter).onlyIf(() -> turretAim.ableToShoot()),
-                indexer.SpinIndexer().onlyWhile(() -> new SpinShooter(shooter).isReadyToShoot()),
+                new SpinShooter(shooter,indexer).onlyIf(() -> turretAim.ableToShoot()),
+                indexer.SpinIndexer().onlyWhile(() -> new SpinShooter(shooter,indexer).isReadyToShoot()),
                 Commands.run(() -> hood.setPosition(Constants.HoodConstants.HoodUpPosition))
             )
         );

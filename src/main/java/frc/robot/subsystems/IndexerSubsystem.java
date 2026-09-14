@@ -83,6 +83,16 @@ public class IndexerSubsystem extends SubsystemBase {
         FeederController.setSetpoint(targetRPM, ControlType.kVelocity);
     }
 
+    public void setJustIndexerVelocityRPM(double targetRPM) {
+        // Convert RPM to Rotations Per Second (RPS)
+        double targetRPS = targetRPM / 60.0;
+
+        // Use the request object to smoothly command the motor
+        if (IndexerMotor != null) {
+            IndexerMotor.setControl(IndexervelocityRequest.withVelocity(targetRPS));
+        }
+    }
+
     public Command SpinIndexer(){
         return this.run(() -> {
             this.setIndexerVelocityRPM(2000);
