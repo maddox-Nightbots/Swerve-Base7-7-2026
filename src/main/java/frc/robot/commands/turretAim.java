@@ -3,16 +3,14 @@ package frc.robot.commands;
 import java.util.List;
 import java.util.function.Supplier;
 
-import edu.wpi.first.wpilibj2.command.Command;
-
-import frc.robot.Constants.TurretConstants;
-import frc.robot.subsystems.TurretSubsystem;
-
 import org.photonvision.targeting.PhotonTrackedTarget;
 
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj2.command.Command;
+import frc.robot.Constants.TurretConstants;
+import frc.robot.subsystems.TurretSubsystem;
 // import edu.wpi.first.wpilibj.sysid.SysIdRoutineLog.State;
 
 public class turretAim extends Command {
@@ -121,7 +119,7 @@ public class turretAim extends Command {
         // the debt.
         //If the tag is no longer visible it needs to add the last tag yaw, then reset last tag yaw to the pending rotation.
         if(!tagVisible){
-            pendingChassisRotations += chassisDeltaRotations + lastTagYaw;
+            pendingChassisRotations += chassisDeltaRotations + lastTagYaw/360;
             lastTagYaw = 0.0;
         } else {
             pendingChassisRotations += chassisDeltaRotations;
@@ -176,7 +174,7 @@ public class turretAim extends Command {
         // OWES -delta of counter-rotation to stay pointed at the field target. Add to
         // the debt.
         if(!tagVisibleTrench){
-            pendingChassisRotations += chassisDeltaRotations + lastTagYawTrench;
+            pendingChassisRotations += chassisDeltaRotations + lastTagYawTrench/360;
             lastTagYawTrench = 0.0;
         } else {
             pendingChassisRotations += chassisDeltaRotations;

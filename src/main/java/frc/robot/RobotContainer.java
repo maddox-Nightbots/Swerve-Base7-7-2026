@@ -147,8 +147,11 @@ public class RobotContainer {
     m_driverController.rightTrigger(RIGHT_TRIGGER_THRESHOLD).onFalse(m_IndexerSubsystem.unstuckBalls().withTimeout(1));
 
     // RIGHT BUMPER: Spin the shooter while held for passing. Releasing stops the shooter.
-    m_driverController.rightBumper().whileTrue(new PassSequence(m_ShooterSubsystem, m_IntakeSubsystem, m_IndexerSubsystem, m_VisionSubsystem::getTurretCameraTargets, m_TurretSubsystem, m_HoodSubsystem, m_swerveSubsystem::getGyroYaw));
-    m_driverController.rightBumper().onFalse(m_IndexerSubsystem.unstuckBalls().withTimeout(1));
+    // TEMP DISABLED: SpinShooter currently requires the indexer (for testing), which conflicts with
+    // indexer.SpinIndexer() inside PassSequence's parallel group and crashes the robot on boot.
+    // To re-enable: remove the indexer requirement from SpinShooter, then uncomment the two lines below.
+    // m_driverController.rightBumper().whileTrue(new PassSequence(m_ShooterSubsystem, m_IntakeSubsystem, m_IndexerSubsystem, m_VisionSubsystem::getTurretCameraTargets, m_TurretSubsystem, m_HoodSubsystem, m_swerveSubsystem::getGyroYaw));
+    // m_driverController.rightBumper().onFalse(m_IndexerSubsystem.unstuckBalls().withTimeout(1));
     m_driverController.povRight().whileTrue(m_spinShooterCommand);
 
     // LEFT TRIGGER: Lower intake and spin it keep trying to set intake position while intaking because balls can move it.
