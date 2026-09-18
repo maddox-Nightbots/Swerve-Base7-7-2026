@@ -49,14 +49,18 @@ tag in view).
 
 ## TurretSubsystem — WORKING (with caveats)
 
-### Hand-taught clamps
-- Move the turret to each physical limit **by hand**, click the **`Set Clamp`** button on
-  the dashboard to capture the current angle. First click = Clamp 1, second = Clamp 2,
-  third = re-capture Clamp 1, etc. (alternates).
-- **The turret refuses to move until BOTH clamps are set** (`setAngle` hard-returns).
-- Motor is **coast** idle mode so it can be moved by hand.
+### Home on start (replaced the hand-taught "Set Clamp" clamps)
+- The turret must be sitting at its **home end** when the robot powers on / code restarts.
+  That position is **0°**. It is the + end of travel; the turret only moves **negative**, down
+  to **-206.4°** (the LONG arc, not the short 153.6° way). Values in
+  `TurretConstants.kHomeRotations / kMinRotations / kMaxRotations`.
+- (Old hand-taught frame for reference: home read 86.4°, far end -120°.)
+- If the code restarted with the turret elsewhere: put it at home by hand and click
+  **`Re-home Turret`** on the dashboard (works while disabled).
+- Motor is **coast** idle mode so it can be moved by hand. The relative encoder keeps
+  counting while powered, so hand movement doesn't lose the zero; only a reboot does.
 - Two-layer travel protection: `setAngle()` software clamp **and** SparkMax firmware soft
-  limits (symmetric ±180° backstop). Both derive from the same values.
+  limits at the same 0° / -206.4° range.
 
 ### Aiming math (`turretAim`)
 - **Counter-rotation debt accumulator (Pigeon IMU):** each loop accumulates the chassis
@@ -64,8 +68,8 @@ tag in view).
   position error high until the turret catches up (fixes the "never counter-rotates" bug).
 - **Vision:** full proportional correction on the target tag's yaw (no gain — re-anchored
   to the measured angle each loop, the form that settled cleanly).
-- **Reachable-side selection:** chooses the full-turn equivalent that lands inside the
-  clamp window, nearest the current position.
+- **No wrap-around:** a target past a travel limit just holds at that limit; angles are
+  never wrapped to ±180°, so the turret always travels the long arc.
 
 ### Hardware
 - SparkMax (confirmed — **not** SparkFlex), CAN ID `TurretConstants.kTurnMotorID`.
@@ -101,7 +105,7 @@ of these failed to appear in Glass:**
 ## What WORKED
 
 - **`SmartDashboard.putData("Set Clamp", Commands.runOnce(...).ignoringDisable(true))`** —
-  a **Command** widget. This reliably shows in Glass under `NetworkTables → SmartDashboard`.
+  a **Command** widget (Set Clamp is gone now; `Re-home Turret` uses the same pattern). This reliably shows in Glass under `NetworkTables → SmartDashboard`.
   Confirmed on the robot ("THAT WORKED. i can see the command").
 - **Plain `SmartDashboard.putNumber/putString/putBoolean` in `periodic()`** — reliable.
   These publish to the `SmartDashboard` NT table and show in Glass's **NetworkTables tree
@@ -155,9 +159,9 @@ Compiling to _verify code_ can be done from WSL via the Windows JDK:
       (`SmartDashboard → Turret`) after a clean deploy. Look for `Turret/BUILD` first.
 - [ ] **Set real values** in `Constants.TurretConstants`: `kTurnMotorID`, and confirm the
       `200/14` gear ratio. Camera names + `kRobotToCamera*` transforms in `VisionConstants`.
-- [ ] **Turret boot position:** clamps + soft limits assume the turret boots at physical 0
-      (relative encoder). Add an absolute encoder or a homing routine, or re-teach clamps
-      every power cycle. Clamps currently reset on reboot (not persisted).
+- [x] **Turret boot position:** home-on-start replaces hand-taught clamps (boot = 0°,
+      travel to -206.4°). Still relies on the drive team putting it at home before power-on;
+      an absolute encoder or limit switch would remove that step.
 - [ ] **Confirm counter-rotation SIGN on the robot.** If the turret moves the wrong way vs
       chassis spin, flip the sign in `turretAim` (the `pendingChassisRotations` term).
 - [ ] **High-speed tracking:** consider a velocity feedforward (tuned `kV`-style constant)

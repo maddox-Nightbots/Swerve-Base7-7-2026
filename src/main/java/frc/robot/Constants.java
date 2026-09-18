@@ -53,18 +53,22 @@ public final class Constants {
     public static final double kMotorGearTeeth = 14.0;   // teeth on the motor pinion
     // Motor rotations per one full turret rotation (encoder counts motor shaft rotations).
     public static final double kMotorRotationsPerTurretRotation = kTurretGearTeeth / kMotorGearTeeth;
-    // --- SAFETY: absolute turret backstop (in TURRET rotations, symmetric about boot position) ---
-    // The wiring on the moving part of the turret CANNOT wind past this without damage. This is
-    // the WIDEST the turret can ever go; the hand-taught clamps operate inside it. Enforced in
-    // two layers: TurretSubsystem.setAngle() and the SparkMax firmware soft limits.
-    // WARNING: the encoder is RELATIVE, so this window is measured from wherever the turret sat
-    // at boot. Home the turret before enabling, or move to an absolute encoder.
-    // TODO: set this to the real wire-safe range measured on the robot.
-    public static final double kBackstopRotations = 180.0 / 360.0; // 0.5 rot = +/-180 deg
-
-    // Smallest allowed spread between the two taught clamps. Capturing both at nearly the same
-    // spot would pin the turret in place, which reads as "broken" on the field.
-    public static final double kMinClampSpreadRotations = 5.0 / 360.0; // 5 deg
+    // --- HOME + TRAVEL LIMITS (in TURRET rotations) ---
+    // The encoder is RELATIVE, so the code assumes the turret is sitting at its HOME end when
+    // the robot boots and seeds the encoder to kHomeRotations. ALWAYS turn the turret to the
+    // home end before powering on / redeploying (or click "Re-home Turret" on the dashboard
+    // after putting it there by hand).
+    // The turret can only move between kMinRotations and kMaxRotations. Enforced in two layers:
+    // TurretSubsystem.setAngle() and the SparkMax firmware soft limits.
+    // The boot position IS zero. It is the + end of travel, so the turret only moves negative.
+    // (In the old hand-taught frame this spot read 86.4 deg and the far end read -120 deg,
+    // so the far end is -120 - 86.4 = -206.4 deg from home.)
+    // This is the LONG 206.4 deg arc, not the short 153.6 deg way around. Angles are never
+    // wrapped to +/-180 anywhere, and going positive past 0 is blocked, so the turret can only
+    // ever reach the far end by sweeping the long arc.
+    public static final double kHomeRotations = 0.0;
+    public static final double kMinRotations = -206.4 / 360.0;
+    public static final double kMaxRotations = 0.0;
 
     // --- Closed-loop position PID (SparkMax, in motor rotations) ---
     public static final double kP = 0.14;
