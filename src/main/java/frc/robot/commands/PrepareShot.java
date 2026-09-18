@@ -6,6 +6,7 @@ import java.util.function.Supplier;
 import org.photonvision.PhotonUtils;
 import org.photonvision.targeting.PhotonTrackedTarget;
 
+import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.interpolation.InterpolatingTreeMap;
 import edu.wpi.first.math.interpolation.Interpolator;
 import edu.wpi.first.math.interpolation.InverseInterpolator;
@@ -40,13 +41,17 @@ public class PrepareShot extends Command   {
         for (var target: targetstoAim){
             if(target.getFiducialId() == TurretConstants.kHubTagId){
 
-            // Calculate distance using PhotonUtils
-            return PhotonUtils.calculateDistanceToTargetMeters(
+                double distance = Math.abs(PhotonUtils.calculateDistanceToTargetMeters(
                 VisionConstants.kRobotToCameraRight.getTranslation().getZ(),
                 Units.feetToMeters(6),
                 VisionConstants.kRobotToCameraRight.getRotation().getY(),
                 Units.degreesToRadians(target.getPitch()) // Vertical angle from camera to target
-            );
+            ));
+
+            SmartDashboard.putNumber("HubDistance", distance);
+            // Calculate distance using PhotonUtils
+
+            return distance;
             }
         }
         return 0.0;

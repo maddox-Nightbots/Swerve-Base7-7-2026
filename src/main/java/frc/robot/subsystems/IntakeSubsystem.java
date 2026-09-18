@@ -55,7 +55,7 @@ public class IntakeSubsystem extends SubsystemBase {
         armConfig.idleMode(SparkMaxConfig.IdleMode.kBrake);
 
         armConfig.smartCurrentLimit(40);
-        armConfig.closedLoop.p(0.0025).i(0.000001).d(0.0004);
+        armConfig.closedLoop.p(0.003).i(0.000001).d(0.0004);
         armMotor.configure(armConfig, kResetSafeParameters, kPersistParameters);
 
         TalonFXConfiguration intakeConfig = new TalonFXConfiguration();
@@ -170,7 +170,7 @@ public class IntakeSubsystem extends SubsystemBase {
 
     public Command SpinIntakeWheels(){
         return this.run(() -> {
-            this.setVelocityRPM(-2000);
+            this.setVelocityRPM(-4000);
         });
     }
 
@@ -198,11 +198,11 @@ public class IntakeSubsystem extends SubsystemBase {
         final double high = IntakeConstants.IntakeDownPosition / 4;
         return Commands.sequence(
             this.runOnce(() -> setIntakePosition(low)),
-            Commands.waitUntil(() -> MathUtil.isNear(low, getArmPosition(), 0.02))
-                .withTimeout(IntakeConstants.ArmMoveTimeoutSeconds),
+            Commands.waitUntil(() -> MathUtil.isNear(low, getArmPosition(), 0.02)),
+                //.withTimeout(IntakeConstants.ArmMoveTimeoutSeconds),
             this.runOnce(() -> setIntakePosition(high)),
             Commands.waitUntil(() -> MathUtil.isNear(high, getArmPosition(), 0.02))
-                .withTimeout(IntakeConstants.ArmMoveTimeoutSeconds)
+                //.withTimeout(IntakeConstants.ArmMoveTimeoutSeconds)
         );
     }
     return run(() -> {

@@ -34,12 +34,10 @@ public final class HoodSubsystem extends SubsystemBase{
             hoodMotor = null;
             hoodpidController = null;
             return;
-        }
+        } else{
 
-        hoodMotor = new SparkMax(50, MotorType.kBrushless);
-
-
-        //config arm motor
+            hoodMotor = new SparkMax(50, MotorType.kBrushless);
+             //config arm motor
         SparkMaxConfig hoodConfig = new SparkMaxConfig();
 
         hoodConfig.inverted(true);
@@ -49,6 +47,9 @@ public final class HoodSubsystem extends SubsystemBase{
         hoodConfig.closedLoop.p(3).i(0.000001).d(0.000);
         hoodMotor.configure(hoodConfig, kResetSafeParameters, kPersistParameters);
         hoodpidController = hoodMotor.getClosedLoopController();
+        }
+
+       
     }
 
     public void setPosition(double position) {

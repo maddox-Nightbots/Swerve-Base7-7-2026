@@ -100,8 +100,8 @@ public final class Constants {
         new Translation3d(Units.inchesToMeters(10.0), Units.inchesToMeters(10.0), Units.inchesToMeters(8.0)),
         new Rotation3d(0.0, Units.degreesToRadians(-20.0), Units.degreesToRadians(30.0)));
     public static final Transform3d kRobotToCameraRight = new Transform3d(
-        new Translation3d(Units.inchesToMeters(10.0), Units.inchesToMeters(-10.0), Units.inchesToMeters(8.0)),
-        new Rotation3d(0.0, Units.degreesToRadians(-20.0), Units.degreesToRadians(-30.0)));
+        new Translation3d(Units.inchesToMeters(10.0), Units.inchesToMeters(-10.0), Units.inchesToMeters(25)),
+        new Rotation3d(0.0, Units.degreesToRadians(-17.0), Units.degreesToRadians(0)));
 
     // --- MEASUREMENT TRUST (standard deviations) ---
     // How much to trust a vision pose: [x meters, y meters, theta radians].

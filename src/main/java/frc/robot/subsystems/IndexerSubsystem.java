@@ -52,16 +52,16 @@ public class IndexerSubsystem extends SubsystemBase {
             IndexerMotor.getConfigurator().apply(IndexerConfig);
         }
 
-        FeederMotor = new SparkMax(2, MotorType.kBrushless);
+        FeederMotor = new SparkMax(53, MotorType.kBrushless);
 
         //config arm motor
         SparkMaxConfig FeederConfig = new SparkMaxConfig();
 
-        FeederConfig.inverted(true);
+        FeederConfig.inverted(false);
         FeederConfig.idleMode(SparkMaxConfig.IdleMode.kBrake);
 
-        FeederConfig.smartCurrentLimit(40);
-        FeederConfig.closedLoop.p(0.0025).i(0.000001).d(0.0004);
+        FeederConfig.smartCurrentLimit(30);
+        FeederConfig.closedLoop.p(0.00025).i(0.000001).d(0.0004);
         FeederMotor.configure(FeederConfig, kResetSafeParameters, kPersistParameters);
 
         FeederController = FeederMotor.getClosedLoopController();
@@ -78,7 +78,6 @@ public class IndexerSubsystem extends SubsystemBase {
         // Use the request object to smoothly command the motor
         if (IndexerMotor != null) {
             IndexerMotor.setControl(IndexervelocityRequest.withVelocity(targetRPS));
-            FeederController.setSetpoint(targetRPM, ControlType.kVelocity);
         }
 
         FeederController.setSetpoint(targetRPM, ControlType.kVelocity);
@@ -111,5 +110,6 @@ public class IndexerSubsystem extends SubsystemBase {
         if (IndexerMotor != null) {
             IndexerMotor.stopMotor();
         }
+        FeederMotor.stopMotor();
     }
 }

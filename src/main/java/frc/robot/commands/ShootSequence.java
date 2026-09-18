@@ -25,7 +25,7 @@ import frc.robot.subsystems.TurretSubsystem;
  */
 public class ShootSequence extends ParallelCommandGroup{
 
-    private static final double kFeedRPM = -2000;
+    private static final double kFeedRPM = -4000;
 
     public ShootSequence(ShooterSubsystem shooter, HoodSubsystem hood, IntakeSubsystem intake,
     IndexerSubsystem indexer, Supplier<List<PhotonTrackedTarget>> targetSupplier, TurretSubsystem turret, Supplier<Rotation2d> gyroYawSupplier){
