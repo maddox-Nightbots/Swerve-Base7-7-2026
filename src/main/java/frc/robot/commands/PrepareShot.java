@@ -1,19 +1,15 @@
 package frc.robot.commands;
 
 import java.util.List;
-//import java.util.Optional;
 import java.util.function.Supplier;
 
 import org.photonvision.PhotonUtils;
 import org.photonvision.targeting.PhotonTrackedTarget;
 
-// import edu.wpi.first.math.geometry.Pose2d;
-// import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.interpolation.InterpolatingTreeMap;
 import edu.wpi.first.math.interpolation.Interpolator;
 import edu.wpi.first.math.interpolation.InverseInterpolator;
 import edu.wpi.first.math.util.Units;
-
 import static edu.wpi.first.units.Units.Inches;
 import static edu.wpi.first.units.Units.Meters;
 import edu.wpi.first.units.measure.Distance;
@@ -21,7 +17,6 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import frc.robot.Constants.TurretConstants;
 import frc.robot.Constants.VisionConstants;
-// import frc.robot.SelectHub;
 import frc.robot.ShooterState;
 import frc.robot.subsystems.HoodSubsystem;
 import frc.robot.subsystems.ShooterSubsystem;
@@ -76,9 +71,9 @@ public class PrepareShot extends Command   {
     );
         // Add your calibration data
         // Distance, new ShooterState(RPM, PivotPosition)
-        distanceToShotMap.put(Inches.of(52.0), new ShooterState(2800, 0.19));
-        distanceToShotMap.put(Inches.of(114.4), new ShooterState(3275, 0.40));
-        distanceToShotMap.put(Inches.of(165.5), new ShooterState(3650, 0.48));
+        distanceToShotMap.put(Inches.of(52.0), new ShooterState(-2500, 0.19));
+        distanceToShotMap.put(Inches.of(114.4), new ShooterState(-3000, 0.40));
+        distanceToShotMap.put(Inches.of(165.5), new ShooterState(-3550, 0.48));
         // To use it:
         ShooterState currentSetpoints = distanceToShotMap.get(Meters.of(hubDistance));
 

@@ -78,6 +78,7 @@ public class IndexerSubsystem extends SubsystemBase {
         // Use the request object to smoothly command the motor
         if (IndexerMotor != null) {
             IndexerMotor.setControl(IndexervelocityRequest.withVelocity(targetRPS));
+            FeederController.setSetpoint(targetRPM, ControlType.kVelocity);
         }
 
         FeederController.setSetpoint(targetRPM, ControlType.kVelocity);
@@ -90,6 +91,7 @@ public class IndexerSubsystem extends SubsystemBase {
         // Use the request object to smoothly command the motor
         if (IndexerMotor != null) {
             IndexerMotor.setControl(IndexervelocityRequest.withVelocity(targetRPS));
+            
         }
     }
 

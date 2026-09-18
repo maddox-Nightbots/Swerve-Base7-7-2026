@@ -16,21 +16,28 @@ import frc.robot.Constants;
 import frc.robot.Constants.HoodConstants;
 
 public final class HoodSubsystem extends SubsystemBase{
+    // null when disabled in Constants, so every use below must check for null
     private final SparkMax hoodMotor;
 
     @SuppressWarnings("FieldMayBeFinal")
 
     private double currentPosition = 0;
     private double targetPosition = 0.3;
-    
+
     private static final double kPositionTolerance = 0.01;
 
     private final SparkClosedLoopController hoodpidController;
 
-    public HoodSubsystem() 
+    public HoodSubsystem()
     {
+        if (!HoodConstants.kEnableHoodMotor) {
+            hoodMotor = null;
+            hoodpidController = null;
+            return;
+        }
+
         hoodMotor = new SparkMax(50, MotorType.kBrushless);
-       
+
 
         //config arm motor
         SparkMaxConfig hoodConfig = new SparkMaxConfig();
@@ -46,7 +53,9 @@ public final class HoodSubsystem extends SubsystemBase{
 
     public void setPosition(double position) {
         final double clampedPosition = MathUtil.clamp(position, HoodConstants.HoodDownPosition, HoodConstants.HoodUpPosition);
-        hoodpidController.setSetpoint(clampedPosition * Constants.HoodConstants.gearRatio, ControlType.kPosition);
+        if (hoodpidController != null) {
+            hoodpidController.setSetpoint(clampedPosition * Constants.HoodConstants.gearRatio, ControlType.kPosition);
+        }
         targetPosition = clampedPosition;
     }
 
@@ -55,6 +64,11 @@ public final class HoodSubsystem extends SubsystemBase{
     }
 
     private void updateCurrentPosition() {
+        // With the motor disabled, pretend we're always on target so nothing waits on the hood.
+        if (hoodMotor == null) {
+            currentPosition = targetPosition;
+            return;
+        }
         currentPosition = hoodMotor.getEncoder().getPosition();
         if (isPositionWithinTolerance()) {
             currentPosition = targetPosition;
@@ -65,6 +79,7 @@ public final class HoodSubsystem extends SubsystemBase{
 
     @Override
     public void periodic() {
+        SmartDashboard.putBoolean("Hood Enabled", hoodMotor != null);
         updateCurrentPosition();
     }
 }

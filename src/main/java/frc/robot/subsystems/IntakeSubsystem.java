@@ -192,11 +192,17 @@ public class IntakeSubsystem extends SubsystemBase {
 
     public Command IntakeUpDown() {
         if (!intaking){
+        // Set a setpoint once, then wait for the ARM (encoder, not setpoint) to get there.
+        // The timeout keeps a blocked arm from stalling the jiggle forever.
+        final double low = IntakeConstants.IntakeDownPosition * 3 / 4;
+        final double high = IntakeConstants.IntakeDownPosition / 4;
         return Commands.sequence(
-            this.run( () -> setIntakePosition(IntakeConstants.IntakeDownPosition*3/4)),
-            Commands.waitUntil(() -> MathUtil.isNear(getIntakePosition(), IntakeConstants.IntakeDownPosition*3/4-0.02, IntakeConstants.IntakeDownPosition*3/4+0.02)),
-            this.run( () -> setIntakePosition(IntakeConstants.IntakeDownPosition/4)),
-            Commands.waitUntil(() -> MathUtil.isNear(getIntakePosition(), IntakeConstants.IntakeDownPosition/4-0.02, IntakeConstants.IntakeDownPosition/4+0.02))
+            this.runOnce(() -> setIntakePosition(low)),
+            Commands.waitUntil(() -> MathUtil.isNear(low, getArmPosition(), 0.02))
+                .withTimeout(IntakeConstants.ArmMoveTimeoutSeconds),
+            this.runOnce(() -> setIntakePosition(high)),
+            Commands.waitUntil(() -> MathUtil.isNear(high, getArmPosition(), 0.02))
+                .withTimeout(IntakeConstants.ArmMoveTimeoutSeconds)
         );
     }
     return run(() -> {

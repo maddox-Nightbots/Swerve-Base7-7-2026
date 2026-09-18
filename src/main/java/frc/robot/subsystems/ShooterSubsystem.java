@@ -62,7 +62,9 @@ public class ShooterSubsystem extends SubsystemBase {
     }
 
     public boolean isVelocityWithinTolerance() {
-            return MathUtil.isNear(targetSpeed, shooterEncoder.getVelocity(), 100);
+            // setShooterRPM() commands the motor at -rpm, so the encoder reads negative.
+            // Compare against the value actually sent to the motor, not the stored rpm.
+            return MathUtil.isNear(-targetSpeed, shooterEncoder.getVelocity(), 100);
     }
 
     public void stop() {

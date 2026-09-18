@@ -148,6 +148,10 @@ public final class Constants {
   }
 
   public static class HoodConstants {
+    // TEMPORARY: set false to skip the hood SparkMax (CAN 50) entirely while it isn't
+    // answering on CAN. Hood commands become no-ops. Set back to true once it's fixed.
+    public static final boolean kEnableHoodMotor = false;
+
     // The real hood reduction is about 10:1, but we deliberately leave it at 1 so every hood
     // position (clamps, setpoints, the PrepareShot tree map, "Hood Position" on the dashboard)
     // is in raw MOTOR rotations. That keeps the tuned tree map numbers direct.
