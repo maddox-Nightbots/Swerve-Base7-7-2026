@@ -131,11 +131,11 @@ public class turretAim extends Command {
         lastTurretAngle = measured;
         pendingChassisRotations -= actualMovement;
 
-        // Anti-windup: only keep debt the turret can actually pay without leaving the taught
-        // clamps. If it sits pinned at a clamp while the robot keeps turning, extra debt would
+        // Anti-windup: only keep debt the turret can actually pay without leaving the travel
+        // limits. If it sits pinned at a limit while the robot keeps turning, extra debt would
         // otherwise pile up and later yank the turret across its range.
         pendingChassisRotations = MathUtil.clamp(pendingChassisRotations,
-            turret.getClampMin() - measured, turret.getClampMax() - measured);
+            turret.getMinAngle() - measured, turret.getMaxAngle() - measured);
 
         // --- 3. Vision fine-aim (turret camera): FULL proportional correction,
         // re-anchored
@@ -148,7 +148,7 @@ public class turretAim extends Command {
         // correction.
         double target = measured + pendingChassisRotations + visionRotations;
 
-        // --- 4. Stay inside the taught clamps ---
+        // --- 4. Stay inside the travel limits ---
         // No wrap-around: a target past a clamp just holds at that clamp, it never jumps to
         // the other end of the range. setAngle() does the clamping (single source of truth
         // in the subsystem).
@@ -186,11 +186,11 @@ public class turretAim extends Command {
         lastTurretAngle = measured;
         pendingChassisRotations -= actualMovement;
 
-        // Anti-windup: only keep debt the turret can actually pay without leaving the taught
-        // clamps. If it sits pinned at a clamp while the robot keeps turning, extra debt would
+        // Anti-windup: only keep debt the turret can actually pay without leaving the travel
+        // limits. If it sits pinned at a limit while the robot keeps turning, extra debt would
         // otherwise pile up and later yank the turret across its range.
         pendingChassisRotations = MathUtil.clamp(pendingChassisRotations,
-            turret.getClampMin() - measured, turret.getClampMax() - measured);
+            turret.getMinAngle() - measured, turret.getMaxAngle() - measured);
 
         // --- 3. Vision fine-aim (turret camera): FULL proportional correction,
         // re-anchored
@@ -203,7 +203,7 @@ public class turretAim extends Command {
         // correction.
         double target = measured + pendingChassisRotations + visionRotations;
 
-        // --- 4. Stay inside the taught clamps ---
+        // --- 4. Stay inside the travel limits ---
         // No wrap-around: a target past a clamp just holds at that clamp, it never jumps to
         // the other end of the range. setAngle() does the clamping (single source of truth
         // in the subsystem).

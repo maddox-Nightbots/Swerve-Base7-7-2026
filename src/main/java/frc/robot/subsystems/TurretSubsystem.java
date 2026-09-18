@@ -18,22 +18,19 @@ import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants.TurretConstants;
 
 /**
- * Turret rotation, with a hand-taught travel range.
+ * Turret rotation, homed from its starting position.
  *
- * <p>SETUP PROCEDURE (do this every boot - the encoder is relative):
- * <ol>
- *   <li>Leave the robot DISABLED. The turret idles in coast so it can be turned by hand.</li>
- *   <li>Turn the turret by hand to one end of its safe travel, then click "Set Clamp" on the
- *       dashboard.</li>
- *   <li>Turn it to the other end and click "Set Clamp" again.</li>
- * </ol>
- * The turret refuses to move until both clamps are captured. "Reset Clamps" starts over.
+ * <p>ON START: the encoder is relative, so at boot the code assumes the turret is sitting at its
+ * HOME end ({@link TurretConstants#kHomeRotations}) and seeds the encoder to that angle. From
+ * there the turret may move between {@link TurretConstants#kMinRotations} and
+ * {@link TurretConstants#kMaxRotations}. Turn the turret to the home end before powering on or
+ * redeploying. If it was somewhere else, put it at home by hand (it coasts while disabled) and
+ * click "Re-home Turret" on the dashboard.
  *
  * <p>Travel is limited in two independent layers:
  * <ul>
- *   <li>LAYER 1 - {@link #setAngle(double)} clamps every request to the taught range.</li>
- *   <li>LAYER 2 - SparkMax firmware soft limits at the absolute backstop. This catches a code
- *       fault; it is not the everyday limit.</li>
+ *   <li>LAYER 1 - {@link #setAngle(double)} clamps every request to the travel range.</li>
+ *   <li>LAYER 2 - SparkMax firmware soft limits at the same range. This catches a code fault.</li>
  * </ul>
  *
  * <p>All public angles are in TURRET rotations (1.0 = one full turret revolution), NOT motor
@@ -41,21 +38,11 @@ import frc.robot.Constants.TurretConstants;
  */
 public class TurretSubsystem extends SubsystemBase {
 
-    private static final double kBackstopMotorRotations =
-        TurretConstants.kBackstopRotations * TurretConstants.kMotorRotationsPerTurretRotation;
-
     private final SparkMax turnMotor;
     private final SparkClosedLoopController turnController;
     private final RelativeEncoder encoder;
 
-    // --- Hand-taught travel clamps (turret rotations) ---
-    private double clamp1Rotations = 0.0;
-    private double clamp2Rotations = 0.0;
-    private boolean clamp1Set = false;
-    private boolean clamp2Set = false;
-    private boolean nextIsClamp1 = true; // which clamp the next click captures
-
-    private double lastCommandedRotations = 0.0;
+    private double lastCommandedRotations = TurretConstants.kHomeRotations;
     private boolean atLimit = false;
 
     // Dashboard readout, published as the Alert group "Turret". Glass renders "Alerts" natively -
@@ -68,10 +55,7 @@ public class TurretSubsystem extends SubsystemBase {
     // Alerts are created once and only toggled in periodic(), per the WPILib Alert docs.
     private final Alert statusAlert = new Alert("Turret", "", AlertType.kInfo);
     private final Alert angleAlert = new Alert("Turret", "", AlertType.kInfo);
-    private final Alert clampAlert = new Alert("Turret", "", AlertType.kInfo);
-    private final Alert lockedAlert = new Alert("Turret", "", AlertType.kWarning);
     private final Alert atLimitAlert = new Alert("Turret", "", AlertType.kWarning);
-    private final Alert narrowRangeAlert = new Alert("Turret", "", AlertType.kWarning);
 
     public TurretSubsystem() {
         turnMotor = new SparkMax(TurretConstants.kTurnMotorID, MotorType.kBrushless);
@@ -81,101 +65,57 @@ public class TurretSubsystem extends SubsystemBase {
         SparkMaxConfig turretConfig = new SparkMaxConfig();
         turretConfig.inverted(false);
         turretConfig.smartCurrentLimit(TurretConstants.kSmartCurrentLimitAmps);
-        // Coast so the turret can be moved BY HAND while teaching the clamps.
+        // Coast so the turret can be put back at home BY HAND while disabled. The relative
+        // encoder still counts hand movement while the robot is powered, so this never loses
+        // the zero - only a reboot/redeploy does.
         turretConfig.idleMode(SparkMaxConfig.IdleMode.kCoast);
         turretConfig.closedLoop
             .p(TurretConstants.kP)
             .i(TurretConstants.kI)
             .d(TurretConstants.kD);
 
-        // LAYER 2: firmware soft limits, symmetric about the boot position. The controller
-        // refuses to drive past these regardless of what the RIO commands.
+        // LAYER 2: firmware soft limits at the travel range. The controller refuses to drive
+        // past these regardless of what the RIO commands.
         turretConfig.softLimit
-            .forwardSoftLimit(kBackstopMotorRotations)
+            .forwardSoftLimit(TurretConstants.kMaxRotations * TurretConstants.kMotorRotationsPerTurretRotation)
             .forwardSoftLimitEnabled(true)
-            .reverseSoftLimit(-kBackstopMotorRotations)
+            .reverseSoftLimit(TurretConstants.kMinRotations * TurretConstants.kMotorRotationsPerTurretRotation)
             .reverseSoftLimitEnabled(true);
 
         turnMotor.configure(turretConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
 
-        // Published as Commands so they appear in Glass under NetworkTables > SmartDashboard with
-        // type "Command" and a Run button. ignoringDisable(true) is what lets them work while the
-        // robot is DISABLED, which is when the clamps are actually taught.
-        SmartDashboard.putData("Set Clamp",
-            Commands.runOnce(this::captureClamp).ignoringDisable(true).withName("Set Clamp"));
-        SmartDashboard.putData("Reset Clamps",
-            Commands.runOnce(this::resetClamps).ignoringDisable(true).withName("Reset Clamps"));
+        // ON-START CALIBRATION: we booted at home, so that's where the encoder starts.
+        home();
+
+        // Published as a Command so it appears in Glass under NetworkTables > SmartDashboard
+        // with a Run button. ignoringDisable(true) lets it work while the robot is DISABLED.
+        SmartDashboard.putData("Re-home Turret",
+            Commands.runOnce(this::home, this).ignoringDisable(true).withName("Re-home Turret"));
     }
 
-    // --- Teaching the travel range -------------------------------------------------------
-
-    /**
-     * Capture the turret's current (hand-set) angle as the next clamp, alternating 1 / 2.
-     * The captured value is limited to the absolute backstop so a taught clamp can never sit
-     * outside what the firmware soft limits will actually allow the turret to reach.
-     */
-    public void captureClamp() {
-        double current = MathUtil.clamp(getAngle(),
-            -TurretConstants.kBackstopRotations, TurretConstants.kBackstopRotations);
-
-        if (nextIsClamp1) {
-            clamp1Rotations = current;
-            clamp1Set = true;
-        } else {
-            clamp2Rotations = current;
-            clamp2Set = true;
-        }
-        nextIsClamp1 = !nextIsClamp1;
-    }
-
-    /** Forget both clamps and lock the turret until they are taught again. */
-    public void resetClamps() {
-        clamp1Set = false;
-        clamp2Set = false;
-        clamp1Rotations = 0.0;
-        clamp2Rotations = 0.0;
-        nextIsClamp1 = true;
-        atLimit = false;
+    /** Declare "the turret is at its home end right now" and reset the encoder to match. */
+    public void home() {
         stop();
+        encoder.setPosition(TurretConstants.kHomeRotations * TurretConstants.kMotorRotationsPerTurretRotation);
+        lastCommandedRotations = TurretConstants.kHomeRotations;
+        atLimit = false;
     }
 
-    /** True once BOTH clamps have been captured - the turret is allowed to move. */
-    public boolean bothClampsSet() {
-        return clamp1Set && clamp2Set;
+    /** Lower travel limit in TURRET rotations. */
+    public double getMinAngle() {
+        return TurretConstants.kMinRotations;
     }
 
-    /** Lower clamp bound in TURRET rotations (backstop until both are taught). */
-    public double getClampMin() {
-        if (!bothClampsSet()) return -TurretConstants.kBackstopRotations;
-        return Math.min(clamp1Rotations, clamp2Rotations);
-    }
-
-    /** Upper clamp bound in TURRET rotations (backstop until both are taught). */
-    public double getClampMax() {
-        if (!bothClampsSet()) return TurretConstants.kBackstopRotations;
-        return Math.max(clamp1Rotations, clamp2Rotations);
-    }
-
-    /** True when both clamps are taught but so close together the turret can barely move. */
-    public boolean isRangeTooNarrow() {
-        return bothClampsSet()
-            && (getClampMax() - getClampMin()) < TurretConstants.kMinClampSpreadRotations;
+    /** Upper travel limit in TURRET rotations. */
+    public double getMaxAngle() {
+        return TurretConstants.kMaxRotations;
     }
 
     // --- Motion ---------------------------------------------------------------------------
 
-    /**
-     * Command the turret to a position in TURRET rotations. The turret will NOT move until both
-     * clamps are taught; after that the request is clamped between them (LAYER 1).
-     */
+    /** Command the turret to a position in TURRET rotations, clamped to the travel range (LAYER 1). */
     public void setAngle(double angle) {
-        if (!bothClampsSet()) {
-            stop(); // locked out - do not drive until both clamps are taught
-            atLimit = false;
-            return;
-        }
-
-        double clamped = MathUtil.clamp(angle, getClampMin(), getClampMax());
+        double clamped = MathUtil.clamp(angle, getMinAngle(), getMaxAngle());
         turnController.setSetpoint(
             clamped * TurretConstants.kMotorRotationsPerTurretRotation, ControlType.kPosition);
         lastCommandedRotations = clamped;
@@ -194,47 +134,18 @@ public class TurretSubsystem extends SubsystemBase {
 
     // --- Dashboard ------------------------------------------------------------------------
 
-    /** Plain-English status shown on the dashboard. */
-    private String getStatusMessage() {
-        if (!bothClampsSet()) {
-            String taught = clamp1Set ? String.format(" Clamp 1 = %.1f deg.", clamp1Rotations * 360.0)
-                          : clamp2Set ? String.format(" Clamp 2 = %.1f deg.", clamp2Rotations * 360.0)
-                          : "";
-            return String.format(
-                "LOCKED -%s Move the turret by hand, then click 'Set Clamp' to capture %s.",
-                taught, nextIsClamp1 ? "Clamp 1" : "Clamp 2");
-        }
-        return String.format("ACTIVE - clamped between %.1f and %.1f deg.",
-            getClampMin() * 360.0, getClampMax() * 360.0);
-    }
-
     /** Refresh the "Turret" Alert group that Glass draws. */
     private void updateAlerts() {
-        statusAlert.setText(getStatusMessage());
+        statusAlert.setText(String.format("Homed at %.1f deg - travel %.1f to %.1f deg.",
+            TurretConstants.kHomeRotations * 360.0, getMinAngle() * 360.0, getMaxAngle() * 360.0));
         statusAlert.set(true);
 
         angleAlert.setText(String.format("Angle %.1f deg  |  commanded %.1f deg",
             getAngle() * 360.0, lastCommandedRotations * 360.0));
         angleAlert.set(true);
 
-        clampAlert.setText(String.format("Clamp 1 %s  |  Clamp 2 %s",
-            clamp1Set ? String.format("%.1f deg", clamp1Rotations * 360.0) : "NOT SET",
-            clamp2Set ? String.format("%.1f deg", clamp2Rotations * 360.0) : "NOT SET"));
-        clampAlert.set(true);
-
-        lockedAlert.setText(String.format(
-            "LOCKED - turret will not move. Next 'Set Clamp' click captures %s.",
-            nextIsClamp1 ? "Clamp 1" : "Clamp 2"));
-        lockedAlert.set(!bothClampsSet());
-
-        atLimitAlert.setText("AT LIMIT - request was clamped to the taught travel range.");
+        atLimitAlert.setText("AT LIMIT - request was clamped to the travel range.");
         atLimitAlert.set(atLimit);
-
-        narrowRangeAlert.setText(String.format(
-            "Taught range is only %.1f deg wide - the turret has almost no travel. "
-                + "Click 'Reset Clamps' and teach it again.",
-            (getClampMax() - getClampMin()) * 360.0));
-        narrowRangeAlert.set(isRangeTooNarrow());
     }
 
     @Override
@@ -243,12 +154,11 @@ public class TurretSubsystem extends SubsystemBase {
 
         // Numeric readouts live under "TurretDiag/" so they stay clear of the
         // "SmartDashboard/Turret" subtable that the Alert group owns.
-        SmartDashboard.putBoolean("TurretDiag/Can Move", bothClampsSet());
         SmartDashboard.putBoolean("TurretDiag/At Limit", atLimit);
         SmartDashboard.putNumber("TurretDiag/Current Angle (deg)", getAngle() * 360.0);
         SmartDashboard.putNumber("TurretDiag/Commanded Angle (deg)", lastCommandedRotations * 360.0);
-        SmartDashboard.putNumber("TurretDiag/Clamp Min (deg)", getClampMin() * 360.0);
-        SmartDashboard.putNumber("TurretDiag/Clamp Max (deg)", getClampMax() * 360.0);
+        SmartDashboard.putNumber("TurretDiag/Min Angle (deg)", getMinAngle() * 360.0);
+        SmartDashboard.putNumber("TurretDiag/Max Angle (deg)", getMaxAngle() * 360.0);
 
         SmartDashboard.putNumber("TurretDiag/Motor Output", turnMotor.getAppliedOutput());
         SmartDashboard.putNumber("TurretDiag/Motor Current (A)", turnMotor.getOutputCurrent());
