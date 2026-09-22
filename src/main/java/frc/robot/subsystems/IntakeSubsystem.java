@@ -55,7 +55,7 @@ public class IntakeSubsystem extends SubsystemBase {
         armConfig.idleMode(SparkMaxConfig.IdleMode.kBrake);
 
         armConfig.smartCurrentLimit(40);
-        armConfig.closedLoop.p(0.003).i(0.000001).d(0.0004);
+        armConfig.closedLoop.p(0.0045).i(0.00001).d(0.0004);
         armMotor.configure(armConfig, kResetSafeParameters, kPersistParameters);
 
         TalonFXConfiguration intakeConfig = new TalonFXConfiguration();
@@ -141,7 +141,7 @@ public class IntakeSubsystem extends SubsystemBase {
         return Commands.sequence(
             this.run(() -> {
                 armMotor.set(0.0);
-                armEncoder.setPosition(-0.27 * IntakeConstants.gearRatio);
+                armEncoder.setPosition(-0.29 * IntakeConstants.gearRatio);
                 DataLogManager.log("Limit switch triggered! Overriding Intake.");
             }),
             this.ManuallyRaise(),
@@ -187,6 +187,7 @@ public class IntakeSubsystem extends SubsystemBase {
     public Command IntakeUp() {
         return this.run(() -> {
         this.setIntakePosition(IntakeConstants.IntakeUpPosition);
+        this.setVelocityRPM(-2000);
     });
     }
 
@@ -196,6 +197,7 @@ public class IntakeSubsystem extends SubsystemBase {
         // The timeout keeps a blocked arm from stalling the jiggle forever.
         final double low = IntakeConstants.IntakeDownPosition * 3 / 4;
         final double high = IntakeConstants.IntakeDownPosition / 4;
+        this.setVelocityRPM(-2000);
         return Commands.sequence(
             this.runOnce(() -> setIntakePosition(low)),
             Commands.waitUntil(() -> MathUtil.isNear(low, getArmPosition(), 0.02)),

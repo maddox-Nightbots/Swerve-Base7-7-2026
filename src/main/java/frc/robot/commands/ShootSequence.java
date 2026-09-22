@@ -1,13 +1,18 @@
 package frc.robot.commands;
 
 import java.util.List;
+import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
 import org.photonvision.targeting.PhotonTrackedTarget;
 
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.wpilibj.XboxController;
+import edu.wpi.first.wpilibj2.command.Command.InterruptionBehavior;
+import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.ParallelCommandGroup;
+import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import frc.robot.subsystems.HoodSubsystem;
 import frc.robot.subsystems.IndexerSubsystem;
 import frc.robot.subsystems.IntakeSubsystem;
@@ -28,17 +33,19 @@ public class ShootSequence extends ParallelCommandGroup{
     private static final double kFeedRPM = -4000;
 
     public ShootSequence(ShooterSubsystem shooter, HoodSubsystem hood, IntakeSubsystem intake,
-    IndexerSubsystem indexer, Supplier<List<PhotonTrackedTarget>> targetSupplier, TurretSubsystem turret, Supplier<Rotation2d> gyroYawSupplier){
+    IndexerSubsystem indexer, Supplier<List<PhotonTrackedTarget>> targetSupplier, TurretSubsystem turret, Supplier<Rotation2d> gyroYawSupplier, BooleanSupplier intaking){
 
         PrepareShot prepareShot = new PrepareShot(shooter, hood, targetSupplier);
 
         addCommands(
             new turretAim(turret, targetSupplier, gyroYawSupplier),
             prepareShot,
-            intake.IntakeUpDown().repeatedly(),
+            intake.IntakeUpDown().repeatedly().until(intaking).withInterruptBehavior(Command.InterruptionBehavior.kCancelSelf).asProxy(),
             // Feed only when ready; otherwise hold the balls. setIndexerVelocityRPM(0) stops
             // both the Kraken and the feeder SparkMax.
             Commands.runEnd(
+                
+            
                 () -> indexer.setIndexerVelocityRPM(
                     turretAim.ableToShoot() && prepareShot.isReadyToShoot() ? kFeedRPM : 0),
                 () -> indexer.setIndexerVelocityRPM(0),

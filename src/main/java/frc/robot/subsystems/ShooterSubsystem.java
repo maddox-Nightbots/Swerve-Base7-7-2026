@@ -40,7 +40,7 @@ public class ShooterSubsystem extends SubsystemBase {
         shooterConfig.inverted(false);
         shooterConfig.smartCurrentLimit(40);
         shooterConfig.closedLoop
-        .p(0.00015).i(0.000001).d(0.0003);
+        .p(0.0015).i(0.00000).d(0.0003).feedForward.kV(0.00018);
 
         SparkFlexConfig ShooterLeftConfig = shooterConfig;
         ShooterLeftConfig.inverted(false);
@@ -64,7 +64,7 @@ public class ShooterSubsystem extends SubsystemBase {
     public boolean isVelocityWithinTolerance() {
             // setShooterRPM() commands the motor at -rpm, so the encoder reads negative.
             // Compare against the value actually sent to the motor, not the stored rpm.
-            return MathUtil.isNear(-targetSpeed, shooterEncoder.getVelocity(), 100);
+            return MathUtil.isNear(-targetSpeed, shooterEncoder.getVelocity(), 400);
     }
 
     public void stop() {

@@ -41,12 +41,12 @@ public class PrepareShot extends Command   {
         for (var target: targetstoAim){
             if(target.getFiducialId() == TurretConstants.kHubTagId){
 
-                double distance = Math.abs(PhotonUtils.calculateDistanceToTargetMeters(
+                double distance = PhotonUtils.calculateDistanceToTargetMeters(
                 VisionConstants.kRobotToCameraRight.getTranslation().getZ(),
-                Units.feetToMeters(6),
+                Units.feetToMeters(4.43),
                 VisionConstants.kRobotToCameraRight.getRotation().getY(),
                 Units.degreesToRadians(target.getPitch()) // Vertical angle from camera to target
-            ));
+            );
 
             SmartDashboard.putNumber("HubDistance", distance);
             // Calculate distance using PhotonUtils
@@ -78,7 +78,7 @@ public class PrepareShot extends Command   {
         // Distance, new ShooterState(RPM, PivotPosition)
         distanceToShotMap.put(Inches.of(52.0), new ShooterState(-2500, 0.19));
         distanceToShotMap.put(Inches.of(114.4), new ShooterState(-3000, 0.40));
-        distanceToShotMap.put(Inches.of(165.5), new ShooterState(-3550, 0.48));
+        distanceToShotMap.put(Inches.of(138.62), new ShooterState(-3400, 0.48));
         // To use it:
         ShooterState currentSetpoints = distanceToShotMap.get(Meters.of(hubDistance));
 

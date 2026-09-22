@@ -8,7 +8,6 @@ import edu.wpi.first.wpilibj2.command.Command; // New Import
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import frc.robot.Constants.OperatorConstants;
-import frc.robot.commands.PassSequence;
 import frc.robot.commands.ShootSequence;
 import frc.robot.commands.SpinShooter;
 import frc.robot.commands.turretAim;
@@ -28,6 +27,9 @@ import swervelib.SwerveInputStream;
  */
 public class RobotContainer {
   private static final double RIGHT_TRIGGER_THRESHOLD = 0.5;
+  public static Boolean shooting = false;
+
+  public double targetHoodPosition = 0.0;
 
   // 1. SUBSYSTEMS: Creating the "Body Parts"
   // We create an instance of SwerveSubsystem so we can tell the drivetrain what to do.
@@ -59,12 +61,13 @@ public class RobotContainer {
   private final CommandXboxController m_driverController = new CommandXboxController(OperatorConstants.kDriverControllerPort);
 
   public RobotContainer() {
+    SmartDashboard.putNumber("Target Hood Position", targetHoodPosition);
+
     // Register Named Commands for PathPlanner
     //Added the command registers for auto.
     com.pathplanner.lib.auto.NamedCommands.registerCommand("VisionAlign", m_VisionSubsystem.visionAlignCommand());
-    com.pathplanner.lib.auto.NamedCommands.registerCommand("ShootSequence", new ShootSequence(m_ShooterSubsystem, m_HoodSubsystem, m_IntakeSubsystem,
-                                                                                                    m_IndexerSubsystem, m_VisionSubsystem::getTurretCameraTargets,
-                                                                                                    m_TurretSubsystem, m_swerveSubsystem::getGyroYaw));
+    com.pathplanner.lib.auto.NamedCommands.registerCommand("ShootSequence", new ShootSequence(m_ShooterSubsystem, m_HoodSubsystem, m_IntakeSubsystem, m_IndexerSubsystem, m_VisionSubsystem::getTurretCameraTargets, m_TurretSubsystem,  m_swerveSubsystem::getGyroYaw, () -> m_driverController.getLeftTriggerAxis()>0.5));
+    m_driverController.rightTrigger(RIGHT_TRIGGER_THRESHOLD).onFalse(m_IndexerSubsystem.unstuckBalls().withTimeout(1));
     com.pathplanner.lib.auto.NamedCommands.registerCommand("Intaking", m_IntakeSubsystem.Intaking());
     
 
@@ -95,14 +98,13 @@ public class RobotContainer {
     SwerveInputStream driveInputStream = SwerveInputStream.of(
         m_swerveSubsystem.getSwerveDrive(), 
         // Forward/Backward (Y-Axis). Note: Up on the stick is usually negative, so we multiply by 1 or -1 if needed.
-        () -> m_driverController.getLeftY() * -1,
+        () -> m_driverController.getLeftY() * (shooting ? -0.3 : -1),
         // Left/Right Strafe (X-Axis).
-        () -> m_driverController.getLeftX() * -1) 
+        () -> m_driverController.getLeftX() * (shooting ? -0.3 : -1)) 
 
         // Rotation: We use the Right Stick to spin the robot. 
         // We multiply by -1 here because usually "Right" on the stick should be "Clockwise."
-        .withControllerRotationAxis(() -> m_driverController.getRightX() * -1)
-        
+        .withControllerRotationAxis(() -> m_driverController.getRightX() * (shooting ? -0.3:-1))
         // Deadband: If the stick is pushed less than X% (e.g., 0.1), ignore it. 
         // This prevents "stick drift" where the robot moves even when you aren't touching it.
         .deadband(OperatorConstants.DEADBAND)
@@ -140,11 +142,11 @@ public class RobotContainer {
         m_swerveSubsystem::getGyroYaw));
 
     // Set hood postion for test
-    m_driverController.b().onTrue(Commands.runOnce(() -> m_HoodSubsystem.setPosition(0.3), m_HoodSubsystem));
+    m_driverController.b().onTrue(Commands.runOnce(() -> m_HoodSubsystem.setPosition(SmartDashboard.getNumber("Target Hood Position", targetHoodPosition)), m_HoodSubsystem));
 
     // RIGHT TRIGGER: Spin the shooter while held for scoring. Releasing stops the shooter.
-    m_driverController.rightTrigger(RIGHT_TRIGGER_THRESHOLD).whileTrue(new ShootSequence(m_ShooterSubsystem, m_HoodSubsystem, m_IntakeSubsystem, m_IndexerSubsystem, m_VisionSubsystem::getTurretCameraTargets, m_TurretSubsystem,  m_swerveSubsystem::getGyroYaw));
-    m_driverController.rightTrigger(RIGHT_TRIGGER_THRESHOLD).onFalse(m_IndexerSubsystem.unstuckBalls().withTimeout(1));
+    m_driverController.rightTrigger(RIGHT_TRIGGER_THRESHOLD).whileTrue(Commands.parallel(new ShootSequence(m_ShooterSubsystem, m_HoodSubsystem, m_IntakeSubsystem, m_IndexerSubsystem, m_VisionSubsystem::getTurretCameraTargets, m_TurretSubsystem,  m_swerveSubsystem::getGyroYaw, () -> m_driverController.getLeftTriggerAxis()>0.5), Commands.run(() -> shooting = true)));
+    m_driverController.rightTrigger(RIGHT_TRIGGER_THRESHOLD).onFalse(Commands.parallel(m_IndexerSubsystem.unstuckBalls().withTimeout(1), Commands.runOnce(() -> shooting = false)));
 
     // RIGHT BUMPER: Spin the shooter while held for passing. Releasing stops the shooter.
     // TEMP DISABLED: SpinShooter currently requires the indexer (for testing), which conflicts with
@@ -158,7 +160,9 @@ public class RobotContainer {
     m_driverController.leftTrigger(RIGHT_TRIGGER_THRESHOLD).whileTrue(m_IntakeSubsystem.Intaking());
     m_driverController.leftTrigger(RIGHT_TRIGGER_THRESHOLD).whileFalse(Commands.run(() -> m_IntakeSubsystem.intaking=false));
     
-    m_driverController.leftBumper().whileTrue(Commands.run(() -> m_IntakeSubsystem.setVelocityRPM(2000)));
+    m_driverController.leftBumper().whileTrue(Commands.run(() -> {
+                                                                  m_IntakeSubsystem.setVelocityRPM(2000);
+                                                                  m_IndexerSubsystem.setIndexerVelocityRPM(2000);}));
     // manual arm controlls for bench-testing the lower limit switch.
     // D-pad up drives the arm up, D-pad down drives it down (blocked at the switch).
     // Restore the line below when the test is done:

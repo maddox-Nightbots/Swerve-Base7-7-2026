@@ -5,6 +5,7 @@ import com.ctre.phoenix6.controls.VelocityVoltage;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 import static com.revrobotics.PersistMode.kPersistParameters;
+import com.revrobotics.RelativeEncoder;
 import static com.revrobotics.ResetMode.kResetSafeParameters;
 import com.revrobotics.spark.SparkBase.ControlType;
 import com.revrobotics.spark.SparkClosedLoopController;
@@ -12,6 +13,7 @@ import com.revrobotics.spark.SparkLowLevel.MotorType;
 import com.revrobotics.spark.SparkMax;
 import com.revrobotics.spark.config.SparkMaxConfig;
 
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants.IndexerConstants;
@@ -24,6 +26,7 @@ public class IndexerSubsystem extends SubsystemBase {
     private final TalonFX IndexerMotor;
     private final SparkMax FeederMotor;
 
+    private final RelativeEncoder FeederEndcoder;
 
     private final VelocityVoltage IndexervelocityRequest = new VelocityVoltage(0);
 
@@ -53,6 +56,7 @@ public class IndexerSubsystem extends SubsystemBase {
         }
 
         FeederMotor = new SparkMax(53, MotorType.kBrushless);
+        FeederEndcoder = FeederMotor.getEncoder();
 
         //config arm motor
         SparkMaxConfig FeederConfig = new SparkMaxConfig();
@@ -79,8 +83,9 @@ public class IndexerSubsystem extends SubsystemBase {
         if (IndexerMotor != null) {
             IndexerMotor.setControl(IndexervelocityRequest.withVelocity(targetRPS));
         }
-
+        SmartDashboard.putNumber("Feeder Speed", FeederEndcoder.getVelocity());
         FeederController.setSetpoint(targetRPM, ControlType.kVelocity);
+
     }
 
     public void setJustIndexerVelocityRPM(double targetRPM) {
@@ -96,13 +101,13 @@ public class IndexerSubsystem extends SubsystemBase {
 
     public Command SpinIndexer(){
         return this.run(() -> {
-            this.setIndexerVelocityRPM(2000);
+            this.setIndexerVelocityRPM(-2000);
         });
     }
 
     public Command unstuckBalls(){
         return this.runOnce(() -> {
-            this.setIndexerVelocityRPM(-2000);
+            this.setIndexerVelocityRPM(2000);
         });
     }
 

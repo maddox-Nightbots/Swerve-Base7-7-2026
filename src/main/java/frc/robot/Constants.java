@@ -104,8 +104,8 @@ public final class Constants {
         new Translation3d(Units.inchesToMeters(10.0), Units.inchesToMeters(10.0), Units.inchesToMeters(8.0)),
         new Rotation3d(0.0, Units.degreesToRadians(-20.0), Units.degreesToRadians(30.0)));
     public static final Transform3d kRobotToCameraRight = new Transform3d(
-        new Translation3d(Units.inchesToMeters(10.0), Units.inchesToMeters(-10.0), Units.inchesToMeters(25)),
-        new Rotation3d(0.0, Units.degreesToRadians(-17.0), Units.degreesToRadians(0)));
+        new Translation3d(Units.inchesToMeters(0), Units.inchesToMeters(0), Units.inchesToMeters(25)),
+        new Rotation3d(0.0, Units.degreesToRadians(21.15), Units.degreesToRadians(0)));
 
     // --- MEASUREMENT TRUST (standard deviations) ---
     // How much to trust a vision pose: [x meters, y meters, theta radians].
@@ -130,7 +130,7 @@ public final class Constants {
     public static final boolean kEnableIntakeRollerTalon = true;
 
     public static final double gearRatio = 25*32 / 12;
-    public static final double IntakeDownPosition = -0.25;
+    public static final double IntakeDownPosition = -0.28;
     public static final double IntakeUpPosition = 0.00;
 
     // RoboRIO DIO port for the arm's bottom limit switch. Wired to ground, so
@@ -147,14 +147,14 @@ public final class Constants {
 
     // TEMPORARY: open-loop speed for the manual D-pad jog used to bench-test the
     // limit switch. Keep this slow.
-    public static final double ArmJogSpeed = 0.10;
+    public static final double ArmJogSpeed = 1.0;
 
   }
 
   public static class HoodConstants {
     // TEMPORARY: set false to skip the hood SparkMax (CAN 50) entirely while it isn't
     // answering on CAN. Hood commands become no-ops. Set back to true once it's fixed.
-    public static final boolean kEnableHoodMotor = false;
+    public static final boolean kEnableHoodMotor = true;
 
     // The real hood reduction is about 10:1, but we deliberately leave it at 1 so every hood
     // position (clamps, setpoints, the PrepareShot tree map, "Hood Position" on the dashboard)

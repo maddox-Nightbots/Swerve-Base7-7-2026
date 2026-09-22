@@ -6,7 +6,8 @@ import frc.robot.subsystems.IndexerSubsystem;
 import frc.robot.subsystems.ShooterSubsystem;
 
 public class SpinShooter extends Command {
-    private static final double SHOOTER_RPM = -3000.0;
+    private static final double SHOOTER_RPM = -2500.0;
+
 
     private final ShooterSubsystem shooter;
     private final IndexerSubsystem indexer;
@@ -15,6 +16,7 @@ public class SpinShooter extends Command {
         this.shooter = shooter;
         this.indexer = indexer;
         addRequirements(shooter, indexer);
+        SmartDashboard.putNumber("shooter_rpm", SHOOTER_RPM);
     }
 
     public boolean isReadyToShoot() {
@@ -24,7 +26,7 @@ public class SpinShooter extends Command {
     @Override
     public void initialize() {
         SmartDashboard.putBoolean("Shooter/Spin Command Active", true);
-        shooter.setShooterRPM(SHOOTER_RPM);
+        shooter.setShooterRPM(SmartDashboard.getNumber("shooter_rpm", SHOOTER_RPM));
         indexer.setIndexerVelocityRPM(-4000);
     }
 
