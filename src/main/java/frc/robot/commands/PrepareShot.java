@@ -76,7 +76,7 @@ public class PrepareShot extends Command   {
     );
         // Add your calibration data
         // Distance, new ShooterState(RPM, PivotPosition)
-        distanceToShotMap.put(Inches.of(52.0), new ShooterState(-2500, 0.19));
+        distanceToShotMap.put(Inches.of(41.73), new ShooterState(-2875, 0.15));
         distanceToShotMap.put(Inches.of(114.4), new ShooterState(-3000, 0.40));
         distanceToShotMap.put(Inches.of(138.62), new ShooterState(-3400, 0.48));
         // To use it:

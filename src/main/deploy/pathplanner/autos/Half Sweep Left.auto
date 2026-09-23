@@ -7,19 +7,25 @@
         {
           "type": "path",
           "data": {
-            "pathName": "Feed and Shoot P1"
-          }
-        },
-        {
-          "type": "wait",
-          "data": {
-            "waitTime": 5.0
+            "pathName": "Go to fuel"
           }
         },
         {
           "type": "named",
           "data": {
-            "name": "Shoot"
+            "name": "Intaking"
+          }
+        },
+        {
+          "type": "path",
+          "data": {
+            "pathName": "Move through fuel half"
+          }
+        },
+        {
+          "type": "named",
+          "data": {
+            "name": "ShootSequence"
           }
         }
       ]

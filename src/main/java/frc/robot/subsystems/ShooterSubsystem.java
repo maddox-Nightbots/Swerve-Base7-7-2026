@@ -40,7 +40,7 @@ public class ShooterSubsystem extends SubsystemBase {
         shooterConfig.inverted(false);
         shooterConfig.smartCurrentLimit(40);
         shooterConfig.closedLoop
-        .p(0.0015).i(0.00000).d(0.0003).feedForward.kV(0.00018);
+        .p(0.00025).i(0.00000).d(0.0006).feedForward.kV(0.0018);
 
         SparkFlexConfig ShooterLeftConfig = shooterConfig;
         ShooterLeftConfig.inverted(false);

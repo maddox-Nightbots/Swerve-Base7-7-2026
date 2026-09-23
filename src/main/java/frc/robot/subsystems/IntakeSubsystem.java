@@ -55,7 +55,7 @@ public class IntakeSubsystem extends SubsystemBase {
         armConfig.idleMode(SparkMaxConfig.IdleMode.kBrake);
 
         armConfig.smartCurrentLimit(40);
-        armConfig.closedLoop.p(0.0045).i(0.00001).d(0.0004);
+        armConfig.closedLoop.p(0.0045).i(0.00004).d(0.0004).feedForward.kS(0.5);
         armMotor.configure(armConfig, kResetSafeParameters, kPersistParameters);
 
         TalonFXConfiguration intakeConfig = new TalonFXConfiguration();

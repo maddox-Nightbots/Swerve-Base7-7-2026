@@ -1,0 +1,116 @@
+{
+  "version": "2025.0",
+  "waypoints": [
+    {
+      "anchor": {
+        "x": 7.739514978601996,
+        "y": 6.642139800285308
+      },
+      "prevControl": null,
+      "nextControl": {
+        "x": 7.576116254805436,
+        "y": 7.354948558310513
+      },
+      "isLocked": false,
+      "linkedName": "Go To Ball end"
+    },
+    {
+      "anchor": {
+        "x": 7.0667047075606275,
+        "y": 1.5701854493580605
+      },
+      "prevControl": {
+        "x": 8.593466476462197,
+        "y": 0.742111269614836
+      },
+      "nextControl": {
+        "x": 6.210136414978914,
+        "y": 2.034764862283737
+      },
+      "isLocked": false,
+      "linkedName": null
+    },
+    {
+      "anchor": {
+        "x": 4.750684736091298,
+        "y": 2.644094151212554
+      },
+      "prevControl": {
+        "x": 5.617574893009986,
+        "y": 2.6052781740370903
+      },
+      "nextControl": {
+        "x": 3.1345059569865246,
+        "y": 2.71646036520232
+      },
+      "isLocked": false,
+      "linkedName": null
+    },
+    {
+      "anchor": {
+        "x": 2.4087874465049923,
+        "y": 3.368659058487874
+      },
+      "prevControl": {
+        "x": 3.068659058487874,
+        "y": 3.39453637660485
+      },
+      "nextControl": null,
+      "isLocked": false,
+      "linkedName": null
+    }
+  ],
+  "rotationTargets": [
+    {
+      "waypointRelativePos": 0.9914712153518086,
+      "rotationDegrees": -151.75261296987793
+    },
+    {
+      "waypointRelativePos": 1.9253731343283529,
+      "rotationDegrees": 0.0
+    }
+  ],
+  "constraintZones": [
+    {
+      "name": "Constraints Zone",
+      "minWaypointRelativePos": 0,
+      "maxWaypointRelativePos": 1.1748818365968807,
+      "constraints": {
+        "maxVelocity": 2.5,
+        "maxAcceleration": 9.2,
+        "maxAngularVelocity": 540.0,
+        "maxAngularAcceleration": 5822.0,
+        "nominalVoltage": 12.0,
+        "unlimited": false
+      }
+    }
+  ],
+  "pointTowardsZones": [],
+  "eventMarkers": [
+    {
+      "name": "Intaking",
+      "waypointRelativePos": 0.0,
+      "endWaypointRelativePos": 1.4422687373396221,
+      "command": null
+    }
+  ],
+  "globalConstraints": {
+    "maxVelocity": 4.5,
+    "maxAcceleration": 9.2,
+    "maxAngularVelocity": 540.0,
+    "maxAngularAcceleration": 5822.0,
+    "nominalVoltage": 12.0,
+    "unlimited": false
+  },
+  "goalEndState": {
+    "velocity": 0,
+    "rotation": 6.842773412631115
+  },
+  "reversed": false,
+  "folder": null,
+  "idealStartingState": {
+    "velocity": 0,
+    "rotation": -103.13402230639608
+  },
+  "useDefaultConstraints": true
+}

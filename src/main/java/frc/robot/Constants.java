@@ -130,7 +130,7 @@ public final class Constants {
     public static final boolean kEnableIntakeRollerTalon = true;
 
     public static final double gearRatio = 25*32 / 12;
-    public static final double IntakeDownPosition = -0.28;
+    public static final double IntakeDownPosition = -0.29;
     public static final double IntakeUpPosition = 0.00;
 
     // RoboRIO DIO port for the arm's bottom limit switch. Wired to ground, so
