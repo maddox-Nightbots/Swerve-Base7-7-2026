@@ -85,12 +85,20 @@ public class SwerveSubsystem extends SubsystemBase {
               new PIDConstants(0.0014645, 0.0, 0.0)  // Rotation (Turning)
           ),
           config,
-          () -> {
-              // Alliance Check: Flips the path automatically if we are on the Red Alliance.
-              var alliance = DriverStation.getAlliance();
-              return alliance.isPresent() && alliance.get() == DriverStation.Alliance.Red;
-          },
-          this);
+() -> {
+    // 1. Check if we are on Red Alliance
+    var alliance = DriverStation.getAlliance();
+    boolean isRed = alliance.isPresent() && alliance.get() == DriverStation.Alliance.Red;
+    
+    // 2. Read a True/False toggle from your Dashboard for starting side
+    // (True = Right side of alliance wall, False = Left side)
+    boolean isStartingRight = SmartDashboard.getBoolean("Start on Right Side?", false);
+    
+    // 3. XOR Logic: If BOTH are true or BOTH are false, don't flip. 
+    // If only ONE is true, PathPlanner flips the path upside down!
+    return isRed ^ isStartingRight; 
+},
+this);
 
       pathPlannerConfigured = true;
     } catch (IOException | ParseException e) {

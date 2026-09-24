@@ -7,7 +7,7 @@
         {
           "type": "path",
           "data": {
-            "pathName": "Go to fuel"
+            "pathName": "Go to fuel Left"
           }
         },
         {
@@ -19,7 +19,7 @@
         {
           "type": "path",
           "data": {
-            "pathName": "Move through fuel full"
+            "pathName": "Move through fuel full Left"
           }
         },
         {

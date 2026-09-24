@@ -1,6 +1,7 @@
 package frc.robot;
 
 import com.pathplanner.lib.auto.AutoBuilder; // New Import
+import com.pathplanner.lib.commands.PathPlannerAuto;
 
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard; // New Import
@@ -70,9 +71,37 @@ public class RobotContainer {
     m_driverController.rightTrigger(RIGHT_TRIGGER_THRESHOLD).onFalse(m_IndexerSubsystem.unstuckBalls().withTimeout(1));
     com.pathplanner.lib.auto.NamedCommands.registerCommand("Intaking", m_IntakeSubsystem.Intaking());
     
+autoChooser = AutoBuilder.buildAutoChooserWithOptionsModifier(stream -> 
+    stream.flatMap(auto -> {
+        // 1. Get the original name from the PathPlanner file (e.g., "Go to fuel Left")
+        String originalName = auto.getName();
+        
+        // 2. Create the mirrored copy (Y-axis only)
+        var mirrored = new PathPlannerAuto(originalName, true);
+        
+        // 3. Clean up the name string by replacing "Left" with "Right"
+        String rightName;
+        if (originalName.contains("Left")) {
+            rightName = originalName.replace("Left", "Right");
+        } else if (originalName.contains("left")) {
+            rightName = originalName.replace("left", "right");
+        } else {
+            // Fallback just in case a path file doesn't have the word "Left" in it
+            rightName = originalName + " (Right Side)"; 
+        }
+        
+        // 4. Set the updated name on the mirrored command
+        mirrored.setName(rightName);
+        
+        // 5. Send both options to your dashboard dropdown menu
+        return java.util.stream.Stream.of(auto, mirrored);
+    })
+);
 
-    autoChooser = AutoBuilder.buildAutoChooser();
+
     SmartDashboard.putData("Auto Chooser", autoChooser);
+
+
     configureBindings();
   }
 
