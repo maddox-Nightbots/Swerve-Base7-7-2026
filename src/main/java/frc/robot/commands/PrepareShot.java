@@ -6,7 +6,6 @@ import java.util.function.Supplier;
 import org.photonvision.PhotonUtils;
 import org.photonvision.targeting.PhotonTrackedTarget;
 
-import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.interpolation.InterpolatingTreeMap;
 import edu.wpi.first.math.interpolation.Interpolator;
 import edu.wpi.first.math.interpolation.InverseInterpolator;
@@ -77,7 +76,9 @@ public class PrepareShot extends Command   {
         // Add your calibration data
         // Distance, new ShooterState(RPM, PivotPosition)
         distanceToShotMap.put(Inches.of(41.73), new ShooterState(-2875, 0.15));
-        distanceToShotMap.put(Inches.of(114.4), new ShooterState(-3000, 0.40));
+        distanceToShotMap.put(Inches.of(84.04), new ShooterState(-3200, 0.40));
+        distanceToShotMap.put(Inches.of(102.36), new ShooterState(-3350, 0.45));
+        distanceToShotMap.put(Inches.of(120.47), new ShooterState(-3375, 0.47));
         distanceToShotMap.put(Inches.of(138.62), new ShooterState(-3400, 0.48));
         // To use it:
         ShooterState currentSetpoints = distanceToShotMap.get(Meters.of(hubDistance));

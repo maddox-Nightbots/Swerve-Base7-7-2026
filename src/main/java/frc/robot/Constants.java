@@ -71,9 +71,9 @@ public final class Constants {
     public static final double kMaxRotations = 0.0;
 
     // --- Closed-loop position PID (SparkMax, in motor rotations) ---
-    public static final double kP = 0.14;
-    public static final double kI = 0.0;
-    public static final double kD = 0.0;
+    public static final double kP = 0.18;
+    public static final double kI = 0.001;
+    public static final double kD = 0.001;
     public static final int kSmartCurrentLimitAmps = 40;
 
     // --- Vision aiming ---
@@ -161,6 +161,6 @@ public final class Constants {
     // is in raw MOTOR rotations. That keeps the tuned tree map numbers direct.
     public static final double gearRatio = 1;
     public static final double HoodDownPosition = 0;
-    public static final double HoodUpPosition = 0.5;
+    public static final double HoodUpPosition = 0.6;
   }
 }

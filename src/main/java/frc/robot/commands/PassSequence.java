@@ -14,6 +14,7 @@ import frc.robot.subsystems.IndexerSubsystem;
 import frc.robot.subsystems.IntakeSubsystem;
 import frc.robot.subsystems.ShooterSubsystem;
 import frc.robot.subsystems.TurretSubsystem;
+import frc.robot.subsystems.VisionSubsystem;
 
 
 public class PassSequence extends SequentialCommandGroup{
@@ -24,7 +25,7 @@ public class PassSequence extends SequentialCommandGroup{
     HoodSubsystem hood;
 
     public PassSequence(ShooterSubsystem shooter, IntakeSubsystem intake, 
-    IndexerSubsystem indexer, Supplier<List<PhotonTrackedTarget>> targetSupplier, TurretSubsystem turret, HoodSubsystem hood, Supplier<Rotation2d> gyroYawSupplier){
+    IndexerSubsystem indexer, Supplier<List<PhotonTrackedTarget>> targetSupplier, TurretSubsystem turret, HoodSubsystem hood, Supplier<Rotation2d> gyroYawSupplier, VisionSubsystem vision){
 
         addRequirements(getRequirements());
         this.intake = intake;
@@ -34,14 +35,15 @@ public class PassSequence extends SequentialCommandGroup{
 
         addCommands(
             Commands.runOnce(() -> hood.setPosition(Constants.HoodConstants.HoodUpPosition)),
-            new turretAim( turret, targetSupplier, gyroYawSupplier),
-            new SpinShooter(shooter,indexer).onlyIf(() -> turretAim.ableToShoot()), 
+            new turretAim( turret, targetSupplier, gyroYawSupplier, vision),
+            new SpinShooter(shooter,indexer).onlyIf(() -> new turretAim( turret, targetSupplier, gyroYawSupplier, vision).ableToShoot()), 
             intake.IntakeUpDown().repeatedly(),
-            Commands.parallel(
-                new SpinShooter(shooter,indexer).onlyIf(() -> turretAim.ableToShoot()),
-                indexer.SpinIndexer().onlyWhile(() -> new SpinShooter(shooter,indexer).isReadyToShoot()),
-                Commands.run(() -> hood.setPosition(Constants.HoodConstants.HoodUpPosition))
-            )
+            
+            // Commands.parallel(
+            //     new SpinShooter(shooter,indexer).onlyIf(() -> new turretAim( turret, targetSupplier, gyroYawSupplier, vision).ableToShoot()),
+            //     indexer.SpinIndexer().onlyWhile(() -> new SpinShooter(shooter,indexer).isReadyToShoot()),
+            //     Commands.run(() -> hood.setPosition(Constants.HoodConstants.HoodUpPosition))
+            // )
         );
     }
 }

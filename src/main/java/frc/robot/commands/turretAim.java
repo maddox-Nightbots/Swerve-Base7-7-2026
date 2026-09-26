@@ -6,11 +6,16 @@ import java.util.function.Supplier;
 import org.photonvision.targeting.PhotonTrackedTarget;
 
 import edu.wpi.first.math.MathUtil;
+import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import frc.robot.Constants.TurretConstants;
+import frc.robot.Constants.TurretConstants;
+import frc.robot.SelectHub;
 import frc.robot.subsystems.TurretSubsystem;
+import frc.robot.subsystems.VisionSubsystem;
 // import edu.wpi.first.wpilibj.sysid.SysIdRoutineLog.State;
 
 public class turretAim extends Command {
@@ -43,12 +48,15 @@ public class turretAim extends Command {
     private static double  lastTagYaw = 0.0;
     private static double  lastTagYawTrench = 0.0;
 
+    private VisionSubsystem visionSubsystem;
+
     public turretAim(TurretSubsystem turret, Supplier<List<PhotonTrackedTarget>> targetSupplier,
-            Supplier<Rotation2d> gyroYawSupplier) {
+            Supplier<Rotation2d> gyroYawSupplier, VisionSubsystem visionSubsystem) {
         addRequirements(turret);
         this.turret = turret;
         turretAim.targetSupplier = targetSupplier;
         this.gyroYawSupplier = gyroYawSupplier;
+        this.visionSubsystem = visionSubsystem;
     }
 
     @Override
@@ -68,18 +76,31 @@ public class turretAim extends Command {
      *         the two apart on the dashboard. Either way 0 means "no vision
      *         correction this loop".
      */
-    private static double getHubTagYaw(List<PhotonTrackedTarget> targetstoAim) {
-        double yawDegrees = 0.0;
-        tagVisible = false;
-        for (var target : targetstoAim) {
-            if (target.getFiducialId() == TurretConstants.kHubTagId) {
-                yawDegrees = target.getYaw();
-                tagVisible = true;
-                lastTagYaw = yawDegrees;
-            }
-        }
-        return yawDegrees;
-    }
+    private double getHubTagYaw(List<PhotonTrackedTarget> targetstoAim) {
+    // 1. Grab where the turret is on the field right now
+    // (Replace turretSubsystem.getFieldPose() with your exact method name)
+    Pose2d turretPose = visionSubsystem.getTurretPose(); 
+
+    // 2. Get the target hub position from your existing method
+    Translation2d hubCenter = SelectHub.hubPosition(); 
+
+    // 3. Create the field vector pointing from the turret directly to the hub center
+    Translation2d turretToHubVector = hubCenter.minus(turretPose.getTranslation());
+    
+    // 4. Calculate the absolute global field angle to the Hub center
+    Rotation2d globalTargetAngle = new Rotation2d(turretToHubVector.getX(), turretToHubVector.getY());
+
+    // 5. Subtract the turret's current field rotation to get the turret-relative angle delta
+    Rotation2d turretRelativeAngle = globalTargetAngle.minus(turretPose.getRotation());
+
+    // 6. Maintain your original method tracking variables
+    tagVisible = true; 
+    double yawDegrees = turretRelativeAngle.getDegrees();
+    lastTagYaw = yawDegrees;
+
+    return yawDegrees;
+}
+
 
     private static double getTrenchTagYaw(List<PhotonTrackedTarget> targetstoAim) {
         double yawDegrees = 0.0;
@@ -97,10 +118,10 @@ public class turretAim extends Command {
         return yawDegrees;
     }
 
-    public static Boolean ableToShoot() {
+    public Boolean ableToShoot() {
         return MathUtil.isNear(0, getHubTagYaw(targetSupplier.get()), 5);
     }
-    public static Boolean ableToShootTrench() {
+    public Boolean ableToShootTrench() {
         return MathUtil.isNear(0, getTrenchTagYaw(targetSupplier.get()), 5);
     }
 

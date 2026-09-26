@@ -78,7 +78,6 @@ public class IndexerSubsystem extends SubsystemBase {
     public void setIndexerVelocityRPM(double targetRPM) {
         // Convert RPM to Rotations Per Second (RPS)
         double targetRPS = targetRPM / 60.0;
-
         // Use the request object to smoothly command the motor
         if (IndexerMotor != null) {
             IndexerMotor.setControl(IndexervelocityRequest.withVelocity(targetRPS));

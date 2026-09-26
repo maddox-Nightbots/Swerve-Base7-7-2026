@@ -54,6 +54,7 @@ public class VisionSubsystem extends SubsystemBase {
   // The most recent trustworthy pose we got from vision, and when we got it.
   // visionAlignCommand() and updateHeadingWithVision() reuse this.
   private Pose2d lastVisionPose = null;
+  private Pose2d lastVisionPoseTurret = null;
   private double lastVisionTimestamp = 0.0;
 
   /**
@@ -158,6 +159,35 @@ public class VisionSubsystem extends SubsystemBase {
           lastVisionTimestamp = estimate.timestampSeconds;
           acceptedThisLoop++;
         }
+
+        //this is so we can get turret pose
+      } else {
+        for (PhotonPipelineResult result : results) {
+          Optional<EstimatedRobotPose> maybeEstimate = unit.estimator.update(result);
+          if (maybeEstimate.isEmpty()) {
+            continue; // No usable tags in this frame.
+          }
+
+          EstimatedRobotPose estimate = maybeEstimate.get();
+          int tagCount = result.getTargets().size();
+          double avgDistance = averageTagDistanceMeters(result);
+
+          // Throw out estimates from tags that are too far away — they get jittery
+          // and can yank the robot's position around.
+          if (avgDistance > VisionConstants.kMaxAverageTagDistanceMeters) {
+            continue;
+          }
+
+          Pose2d visionPose = estimate.estimatedPose.toPose2d();
+          Matrix<N3, N1> stdDevs = computeStdDevs(tagCount, avgDistance);
+
+          // Hand the position to the swerve pose estimator. The stdDevs tell it how
+          // much to trust us versus the wheel odometry.
+
+          lastVisionPoseTurret = visionPose;
+          lastVisionTimestamp = estimate.timestampSeconds;
+          acceptedThisLoop++;
+        }
       }
 
       // Publish per-camera targeting data from the newest frame we received this loop.
@@ -177,6 +207,7 @@ public class VisionSubsystem extends SubsystemBase {
       SmartDashboard.putNumber("Vision/LastY", lastVisionPose.getY());
       SmartDashboard.putNumber("Vision/AgeSeconds", Timer.getFPGATimestamp() - lastVisionTimestamp);
     }
+
   }
 
   /**
@@ -328,5 +359,9 @@ public class VisionSubsystem extends SubsystemBase {
    */
   public List<PhotonTrackedTarget> getTurretCameraTargets() {
     return getTargets(VisionConstants.kCameraRightName);
+  }
+
+  public Pose2d getTurretPose(){
+    return lastVisionPoseTurret;
   }
 }

@@ -67,7 +67,7 @@ public class RobotContainer {
     // Register Named Commands for PathPlanner
     //Added the command registers for auto.
     com.pathplanner.lib.auto.NamedCommands.registerCommand("VisionAlign", m_VisionSubsystem.visionAlignCommand());
-    com.pathplanner.lib.auto.NamedCommands.registerCommand("ShootSequence", new ShootSequence(m_ShooterSubsystem, m_HoodSubsystem, m_IntakeSubsystem, m_IndexerSubsystem, m_VisionSubsystem::getTurretCameraTargets, m_TurretSubsystem,  m_swerveSubsystem::getGyroYaw, () -> m_driverController.getLeftTriggerAxis()>0.5));
+    com.pathplanner.lib.auto.NamedCommands.registerCommand("ShootSequence", new ShootSequence(m_ShooterSubsystem, m_HoodSubsystem, m_IntakeSubsystem, m_IndexerSubsystem, () -> m_VisionSubsystem.getTurretCameraTargets(), m_TurretSubsystem, () -> m_swerveSubsystem.getGyroYaw(), () -> m_driverController.getLeftTriggerAxis()>0.5,  m_VisionSubsystem));
     m_driverController.rightTrigger(RIGHT_TRIGGER_THRESHOLD).onFalse(m_IndexerSubsystem.unstuckBalls().withTimeout(1));
     com.pathplanner.lib.auto.NamedCommands.registerCommand("Intaking", m_IntakeSubsystem.Intaking());
     
@@ -167,14 +167,15 @@ autoChooser = AutoBuilder.buildAutoChooserWithOptionsModifier(stream ->
     // Releasing stops the turret.
     m_driverController.a().whileTrue(new turretAim(
         m_TurretSubsystem,
-        m_VisionSubsystem::getTurretCameraTargets,
-        m_swerveSubsystem::getGyroYaw));
+        () -> m_VisionSubsystem.getTurretCameraTargets(),
+        () -> m_swerveSubsystem.getGyroYaw(),
+        m_VisionSubsystem));
 
     // Set hood postion for test
     m_driverController.b().onTrue(Commands.runOnce(() -> m_HoodSubsystem.setPosition(SmartDashboard.getNumber("Target Hood Position", targetHoodPosition)), m_HoodSubsystem));
 
     // RIGHT TRIGGER: Spin the shooter while held for scoring. Releasing stops the shooter.
-    m_driverController.rightTrigger(RIGHT_TRIGGER_THRESHOLD).whileTrue(Commands.parallel(new ShootSequence(m_ShooterSubsystem, m_HoodSubsystem, m_IntakeSubsystem, m_IndexerSubsystem, m_VisionSubsystem::getTurretCameraTargets, m_TurretSubsystem,  m_swerveSubsystem::getGyroYaw, () -> m_driverController.getLeftTriggerAxis()>0.5), Commands.run(() -> shooting = true)));
+    m_driverController.rightTrigger(RIGHT_TRIGGER_THRESHOLD).whileTrue(Commands.parallel(new ShootSequence(m_ShooterSubsystem, m_HoodSubsystem, m_IntakeSubsystem, m_IndexerSubsystem, () -> m_VisionSubsystem.getTurretCameraTargets(), m_TurretSubsystem,  () -> m_swerveSubsystem.getGyroYaw(), () -> m_driverController.getLeftTriggerAxis()>0.5, m_VisionSubsystem), Commands.run(() -> shooting = true)));
     m_driverController.rightTrigger(RIGHT_TRIGGER_THRESHOLD).onFalse(Commands.parallel(m_IndexerSubsystem.unstuckBalls().withTimeout(1), Commands.runOnce(() -> shooting = false)));
 
     // RIGHT BUMPER: Spin the shooter while held for passing. Releasing stops the shooter.

@@ -44,7 +44,7 @@ public final class HoodSubsystem extends SubsystemBase{
         hoodConfig.idleMode(SparkMaxConfig.IdleMode.kBrake);
 
         hoodConfig.smartCurrentLimit(20);
-        hoodConfig.closedLoop.p(0.65).i(0.000001).d(0.000);
+        hoodConfig.closedLoop.p(0.65).i(0.000001).d(0.000).feedForward.kG(0.04);
         hoodMotor.configure(hoodConfig, kResetSafeParameters, kPersistParameters);
         hoodpidController = hoodMotor.getClosedLoopController();
         }
