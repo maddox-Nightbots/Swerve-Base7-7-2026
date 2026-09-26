@@ -78,7 +78,7 @@ public final class Constants {
 
     // --- Vision aiming ---
     final static Optional<Alliance> alliance = DriverStation.getAlliance();
-    public static final int kHubTagId = (alliance.get() == Alliance.Red ? 32 : 32); // AprilTag the turret aims at
+    public static final int kHubTagId = (alliance.get() == Alliance.Red ? 10 : 26); // AprilTag the turret aims at
     public static final int kTrenchLeftTagId = (alliance.get() == Alliance.Red ? 6 : 6); // AprilTag the turret aims at
     public static final int kTrenchRightTagId = (alliance.get() == Alliance.Red ? 6 : 6); // AprilTag the turret aims at
   

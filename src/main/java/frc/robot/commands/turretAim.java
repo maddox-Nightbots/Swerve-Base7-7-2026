@@ -9,9 +9,9 @@ import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
+import edu.wpi.first.wpilibj.smartdashboard.Field2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
-import frc.robot.Constants.TurretConstants;
 import frc.robot.Constants.TurretConstants;
 import frc.robot.SelectHub;
 import frc.robot.subsystems.TurretSubsystem;
@@ -50,6 +50,8 @@ public class turretAim extends Command {
 
     private VisionSubsystem visionSubsystem;
 
+    private Field2d turretField;
+
     public turretAim(TurretSubsystem turret, Supplier<List<PhotonTrackedTarget>> targetSupplier,
             Supplier<Rotation2d> gyroYawSupplier, VisionSubsystem visionSubsystem) {
         addRequirements(turret);
@@ -77,9 +79,12 @@ public class turretAim extends Command {
      *         correction this loop".
      */
     private double getHubTagYaw(List<PhotonTrackedTarget> targetstoAim) {
+    try{
     // 1. Grab where the turret is on the field right now
     // (Replace turretSubsystem.getFieldPose() with your exact method name)
-    Pose2d turretPose = visionSubsystem.getTurretPose(); 
+    Pose2d turretPose = visionSubsystem.getTurretPose();
+    turretField.setRobotPose(turretPose);
+    SmartDashboard.putData("turret Pose", turretField);
 
     // 2. Get the target hub position from your existing method
     Translation2d hubCenter = SelectHub.hubPosition(); 
@@ -98,7 +103,12 @@ public class turretAim extends Command {
     double yawDegrees = turretRelativeAngle.getDegrees();
     lastTagYaw = yawDegrees;
 
+    SmartDashboard.putNumber("Turret Aiming Angle", yawDegrees);
     return yawDegrees;
+    }
+    catch(Exception error){
+        return 0.0;
+    }
 }
 
 
