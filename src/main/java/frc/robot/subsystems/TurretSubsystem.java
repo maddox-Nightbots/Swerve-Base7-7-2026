@@ -81,7 +81,7 @@ public class TurretSubsystem extends SubsystemBase {
             .p(TurretConstants.kP)
             .i(TurretConstants.kI)
             .d(TurretConstants.kD)
-            .feedForward.kS(0.2);
+            .feedForward.kS(0.3);
 
         // LAYER 2: firmware soft limits at the travel range. The controller refuses to drive
         // past these regardless of what the RIO commands.

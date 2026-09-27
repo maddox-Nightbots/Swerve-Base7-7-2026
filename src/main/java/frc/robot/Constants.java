@@ -72,11 +72,11 @@ public final class Constants {
     public static final double kMaxRotations = 0.0;
 
     // --- Closed-loop position PID (SparkMax, in motor rotations) ---
-    public static final double kP = 0.018;
+    public static final double kP = 0.18;
     // Keep I at 0. The SparkMax adds kI * error EVERY 1 ms, with error in MOTOR rotations
     // (14.3 per turret rotation). 0.001 built up to full output within a second of a big move
     // and flung the turret past its target. If I is ever needed, also set an iZone.
-    public static final double kI = 0.0;
+    public static final double kI = 0.0001;
     public static final double kD = 0.001;
     public static final int kSmartCurrentLimitAmps = 40;
 
