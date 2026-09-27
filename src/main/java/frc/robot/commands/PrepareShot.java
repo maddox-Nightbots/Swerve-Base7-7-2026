@@ -13,9 +13,10 @@ import edu.wpi.first.math.util.Units;
 import static edu.wpi.first.units.Units.Inches;
 import static edu.wpi.first.units.Units.Meters;
 import edu.wpi.first.units.measure.Distance;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
-import frc.robot.Constants.TurretConstants;
+import frc.robot.SelectHub;
 import frc.robot.Constants.VisionConstants;
 import frc.robot.ShooterState;
 import frc.robot.subsystems.HoodSubsystem;
@@ -34,6 +35,10 @@ public class PrepareShot extends Command   {
     private ShooterState lastShot = null;
     // Whether the hub tag was seen this loop, i.e. the current setpoints match a real distance.
     private boolean hasDistance = false;
+    // FPGA time the hub tag was last seen. The tag drops out for single frames all the time,
+    // so lastShot counts as a real distance for kDistanceGraceSeconds after that.
+    private double lastSeenTime = Double.NEGATIVE_INFINITY;
+    private static final double kDistanceGraceSeconds = 1.0;
 
     public PrepareShot(ShooterSubsystem shooter, HoodSubsystem hood, Supplier<List<PhotonTrackedTarget>> targetSupplier) {
         addRequirements(shooter, hood);
@@ -42,9 +47,11 @@ public class PrepareShot extends Command   {
         this.targetSupplier = targetSupplier;
     }
 
+    /** Distance to the nearest visible tag on our hub (any face), or 0.0 if none is in view. */
     private double getTagDistanceMeters(List<PhotonTrackedTarget> targetstoAim){
+        double nearest = 0.0;
         for (var target: targetstoAim){
-            if(target.getFiducialId() == TurretConstants.kHubTagId){
+            if(SelectHub.isOurHubTag(target.getFiducialId())){
 
                 double distance = PhotonUtils.calculateDistanceToTargetMeters(
                 VisionConstants.kTurretToCamera.getTranslation().getZ(),
@@ -54,13 +61,15 @@ public class PrepareShot extends Command   {
                 Units.degreesToRadians(target.getPitch()) // Vertical angle from camera to target
             );
 
-            SmartDashboard.putNumber("HubDistance", distance);
-            // Calculate distance using PhotonUtils
-
-            return distance;
+            if (nearest == 0.0 || distance < nearest) {
+                nearest = distance;
+            }
             }
         }
-        return 0.0;
+        if (nearest > 0.0) {
+            SmartDashboard.putNumber("HubDistance", nearest);
+        }
+        return nearest;
     }
 
 
@@ -92,15 +101,21 @@ public class PrepareShot extends Command   {
         return currentSetpoints;
     }
 
-    /** True only when the setpoints come from a real hub distance AND the shooter is at speed. */
+    /** True when the hub tag was seen within the last kDistanceGraceSeconds. */
+    public boolean hasRecentDistance() {
+        return lastShot != null && Timer.getFPGATimestamp() - lastSeenTime <= kDistanceGraceSeconds;
+    }
+
+    /** True only when the setpoints come from a recent hub distance AND the shooter is at speed. */
     public boolean isReadyToShoot() {
-        return hasDistance && shooter.isVelocityWithinTolerance();
+        return hasRecentDistance() && shooter.isVelocityWithinTolerance();
     }
 
     @Override
     public void initialize() {
         lastShot = null;
         hasDistance = false;
+        lastSeenTime = Double.NEGATIVE_INFINITY;
     }
 
     @Override
@@ -109,6 +124,7 @@ public class PrepareShot extends Command   {
         hasDistance = distanceToHub > 0.0;
         if (hasDistance) {
             lastShot = getShooterState(distanceToHub);
+            lastSeenTime = Timer.getFPGATimestamp();
         }
         // Before the hub is first seen, pre-spin at the closest table entry. Nothing feeds
         // until hasDistance is true, so this never fires a ball at the wrong settings.
@@ -117,6 +133,7 @@ public class PrepareShot extends Command   {
         hood.setPosition(shot.hoodPosition);
         SmartDashboard.putNumber("Distance to Hub (inches)", distanceToHub);
         SmartDashboard.putBoolean("Shooter/Hub Distance Known", hasDistance);
+        SmartDashboard.putBoolean("Shooter/Hub Distance Recent", hasRecentDistance());
     }
 
     @Override

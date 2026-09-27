@@ -23,12 +23,13 @@ import frc.robot.Constants.TurretConstants;
 /**
  * Turret rotation, homed from its starting position.
  *
- * <p>ON START: the encoder is relative, so at boot the code assumes the turret is sitting at its
- * HOME end ({@link TurretConstants#kHomeRotations}) and seeds the encoder to that angle. From
- * there the turret may move between {@link TurretConstants#kMinRotations} and
- * {@link TurretConstants#kMaxRotations}. Turn the turret to the home end before powering on or
- * redeploying. If it was somewhere else, put it at home by hand (it coasts while disabled) and
- * click "Re-home Turret" on the dashboard.
+ * <p>ON START: the encoder is relative and lives in the SparkMax, which starts at 0 when it is
+ * powered on. 0 is the HOME end ({@link TurretConstants#kHomeRotations}), so power the robot on
+ * with the turret at home. A code restart / redeploy does NOT reset it: the SparkMax stays
+ * powered and keeps its count. From there the turret may move between
+ * {@link TurretConstants#kMinRotations} and {@link TurretConstants#kMaxRotations}. If the zero
+ * is ever wrong, put the turret at home by hand (it coasts while disabled) and click
+ * "Reset - Zero Turret" on the dashboard.
  *
  * <p>Travel is limited in two independent layers:
  * <ul>
@@ -93,13 +94,16 @@ public class TurretSubsystem extends SubsystemBase {
 
         turnMotor.configure(turretConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
 
-        // ON-START CALIBRATION: we booted at home, so that's where the encoder starts.
-        home();
+        // No home() here. The SparkMax keeps counting as long as it has power, so a code
+        // restart / redeploy picks up the real turret position instead of re-zeroing wherever
+        // the turret happens to be. On a real power-up the SparkMax starts at 0, which is home
+        // (kHomeRotations = 0), so the robot still has to be powered on with the turret at home.
+        lastCommandedRotations = getAngle();
 
         // Published as a Command so it appears in Glass under NetworkTables > SmartDashboard
         // with a Run button. ignoringDisable(true) lets it work while the robot is DISABLED.
-        SmartDashboard.putData("Re-home Turret",
-            Commands.runOnce(this::home, this).ignoringDisable(true).withName("Re-home Turret"));
+        SmartDashboard.putData("Reset - Zero Turret",
+            Commands.runOnce(this::home, this).ignoringDisable(true).withName("Reset - Zero Turret"));
     }
 
     /** Declare "the turret is at its home end right now" and reset the encoder to match. */

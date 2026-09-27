@@ -62,9 +62,14 @@ public class ShooterSubsystem extends SubsystemBase {
     }
 
     public boolean isVelocityWithinTolerance() {
+            return isVelocityWithin(400);
+    }
+
+    /** True when the flywheel is within toleranceRPM of the target. */
+    public boolean isVelocityWithin(double toleranceRPM) {
             // setShooterRPM() commands the motor at -rpm, so the encoder reads negative.
             // Compare against the value actually sent to the motor, not the stored rpm.
-            return MathUtil.isNear(-targetSpeed, shooterEncoder.getVelocity(), 400);
+            return MathUtil.isNear(-targetSpeed, shooterEncoder.getVelocity(), toleranceRPM);
     }
 
     public void stop() {

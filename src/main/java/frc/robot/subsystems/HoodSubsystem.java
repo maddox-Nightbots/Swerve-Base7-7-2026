@@ -11,6 +11,7 @@ import com.revrobotics.spark.config.SparkMaxConfig;
 
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants;
 import frc.robot.Constants.HoodConstants;
@@ -47,9 +48,26 @@ public final class HoodSubsystem extends SubsystemBase{
         hoodConfig.closedLoop.p(0.65).i(0.000001).d(0.000).feedForward.kG(0.04);
         hoodMotor.configure(hoodConfig, kResetSafeParameters, kPersistParameters);
         hoodpidController = hoodMotor.getClosedLoopController();
+
+        // Same as "Reset - Zero Turret": appears in Glass under NetworkTables > SmartDashboard
+        // with a Run button, and works while DISABLED.
+        SmartDashboard.putData("Reset - Zero Hood",
+            Commands.runOnce(this::zero, this).ignoringDisable(true).withName("Reset - Zero Hood"));
         }
 
-       
+
+    }
+
+    /** Declare "the hood is fully DOWN right now" (HoodDownPosition = 0) and reset the encoder to match. */
+    public void zero() {
+        if (hoodMotor == null) {
+            return;
+        }
+        // set(0) also drops the old position setpoint, so the hood doesn't jump to it
+        // relative to the new zero.
+        hoodMotor.set(0);
+        hoodMotor.getEncoder().setPosition(HoodConstants.HoodDownPosition * HoodConstants.gearRatio);
+        targetPosition = HoodConstants.HoodDownPosition;
     }
 
     public void setPosition(double position) {

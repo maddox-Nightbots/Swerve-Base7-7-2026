@@ -32,6 +32,9 @@ public class turretAim extends Command {
     // True when the turret is on the hub (within kAimToleranceDegrees) and the hub is inside
     // the travel range. Only meaningful while this command is running.
     private boolean aimed = false;
+    // How far off the hub the turret is (worst of reach and tracking error), degrees.
+    // Infinity when there is no turret fix yet.
+    private double aimErrorDeg = Double.POSITIVE_INFINITY;
 
     public turretAim(TurretSubsystem turret, Supplier<Optional<Translation2d>> turretPositionSupplier,
             Supplier<Optional<Rotation2d>> robotHeadingSupplier) {
@@ -44,11 +47,17 @@ public class turretAim extends Command {
     @Override
     public void initialize() {
         aimed = false;
+        aimErrorDeg = Double.POSITIVE_INFINITY;
     }
 
     /** Whether the indexer may feed: see {@link #aimed}. */
     public boolean ableToShoot() {
         return aimed;
+    }
+
+    /** Degrees the turret is off the hub; infinity with no turret fix. */
+    public double aimErrorDegrees() {
+        return aimErrorDeg;
     }
 
     @Override
@@ -59,6 +68,7 @@ public class turretAim extends Command {
             // No turret fix yet: hold still rather than aim at a guess.
             turret.setAngle(turret.getAngle());
             aimed = false;
+            aimErrorDeg = Double.POSITIVE_INFINITY;
             SmartDashboard.putBoolean("TurretDiag/Aimed", false);
             return;
         }
@@ -75,8 +85,8 @@ public class turretAim extends Command {
         // hub is out of range), and between where the turret is and where it's told to go.
         double reachErrorDeg = TurretSubsystem.headingForAngle(targetAngle).minus(hubHeading).getDegrees();
         double trackErrorDeg = (targetAngle - turret.getAngle()) * 360.0;
-        aimed = Math.abs(reachErrorDeg) <= TurretConstants.kAimToleranceDegrees
-            && Math.abs(trackErrorDeg) <= TurretConstants.kAimToleranceDegrees;
+        aimErrorDeg = Math.max(Math.abs(reachErrorDeg), Math.abs(trackErrorDeg));
+        aimed = aimErrorDeg <= TurretConstants.kAimToleranceDegrees;
 
         SmartDashboard.putNumber("TurretDiag/Aim Target (deg)", targetAngle * 360.0);
         SmartDashboard.putNumber("TurretDiag/Aim Hub Heading (deg)", hubHeading.getDegrees());
@@ -89,6 +99,7 @@ public class turretAim extends Command {
     @Override
     public void end(boolean interrupted) {
         aimed = false;
+        aimErrorDeg = Double.POSITIVE_INFINITY;
         SmartDashboard.putBoolean("TurretDiag/Aimed", false);
         turret.stop();
     }

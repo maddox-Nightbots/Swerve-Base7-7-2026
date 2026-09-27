@@ -80,6 +80,8 @@ public class VisionSubsystem extends SubsystemBase {
   private Rotation2d robotHeadingAtFix = null;
   private Rotation2d rawYawAtFix = null;
   private double lastTurretFixTimestamp = 0.0;
+  // Turret-camera frames rejected in a row for disagreeing with the tracked heading.
+  private int turretFramesRejectedInARow = 0;
   // How far the robot has driven since the fix (wheel speeds, turned by the heading above).
   private Translation2d travelledSinceFix = Translation2d.kZero;
   private double lastTravelTimestamp = -1.0;
@@ -268,16 +270,41 @@ public class VisionSubsystem extends SubsystemBase {
     // which way it faces on the robot (encoder) at that same moment.
     double timestamp = result.getTimestampSeconds();
     Rotation2d turretOnRobot = TurretSubsystem.headingForAngle(turret.getAngleAt(timestamp));
-    turretFixPosition = turretPose.getTranslation();
-    robotHeadingAtFix = turretPose.getRotation().minus(turretOnRobot);
-    rawYawAtFix = rawYawHistory.getSample(timestamp).orElse(rawYaw());
-    travelledSinceFix = Translation2d.kZero;
-    lastTurretFixTimestamp = timestamp;
-
+    Rotation2d cameraHeading = turretPose.getRotation().minus(turretOnRobot);
+    Rotation2d rawYawAtFrame = rawYawHistory.getSample(timestamp).orElse(rawYaw());
     SmartDashboard.putNumber("Vision/TurretSolve/Turret Field Heading (deg)", turretPose.getRotation().getDegrees());
     SmartDashboard.putNumber("Vision/TurretSolve/Turret Heading On Robot (deg)", turretOnRobot.getDegrees());
-    SmartDashboard.putNumber("Vision/TurretSolve/Robot Heading From Camera (deg)", robotHeadingAtFix.getDegrees());
-    SmartDashboard.putString(statusKey, "turret fix");
+    SmartDashboard.putNumber("Vision/TurretSolve/Robot Heading From Camera (deg)", cameraHeading.getDegrees());
+
+    if (turretFixPosition == null
+        || turretFramesRejectedInARow >= VisionConstants.kTurretResyncFrames
+        || timestamp - lastTurretFixTimestamp > VisionConstants.kTurretFixStaleSeconds) {
+      // First fix, the last fix is stale, or the camera has disagreed long enough that the
+      // tracked heading is the wrong one: take the camera outright.
+      turretFixPosition = turretPose.getTranslation();
+      robotHeadingAtFix = cameraHeading;
+      SmartDashboard.putString(statusKey, "turret fix (reset)");
+    } else {
+      // Where the gyro and wheels say we are, at this frame's time.
+      Rotation2d trackedHeading = robotHeadingAtFix.plus(rawYawAtFrame.minus(rawYawAtFix));
+      double headingJumpDeg = cameraHeading.minus(trackedHeading).getDegrees();
+      SmartDashboard.putNumber("Vision/TurretSolve/Heading Jump (deg)", headingJumpDeg);
+      if (Math.abs(headingJumpDeg) > VisionConstants.kTurretMaxHeadingJumpDegrees) {
+        // A single tag's mirror-flip or a noisy solve. Keep the tracked fix.
+        turretFramesRejectedInARow++;
+        SmartDashboard.putString(statusKey, String.format("rejected: heading jump %.0f deg", headingJumpDeg));
+        return;
+      }
+      // Agrees with the gyro: nudge toward the camera instead of snapping to it.
+      Translation2d trackedPosition = getTurretFieldPosition().get();
+      robotHeadingAtFix = trackedHeading.interpolate(cameraHeading, VisionConstants.kTurretHeadingBlend);
+      turretFixPosition = trackedPosition.interpolate(turretPose.getTranslation(), VisionConstants.kTurretPositionBlend);
+      SmartDashboard.putString(statusKey, "turret fix");
+    }
+    turretFramesRejectedInARow = 0;
+    rawYawAtFix = rawYawAtFrame;
+    travelledSinceFix = Translation2d.kZero;
+    lastTurretFixTimestamp = timestamp;
   }
 
   /**
@@ -371,7 +398,7 @@ public class VisionSubsystem extends SubsystemBase {
     }
     // A single tag seen nearly head-on can flip to a mirror-image solution. Multi-tag (two hub
     // tags on one face, with multi-target on in PhotonVision) doesn't have this problem.
-    if (singleTagAmbiguity > VisionConstants.kMaxSingleTagAmbiguity) {
+    if (singleTagAmbiguity > VisionConstants.kTurretMaxTagAmbiguity) {
       SmartDashboard.putString(statusKey, "rejected: ambiguous single tag (turn on multi-target in PhotonVision)");
       return Optional.empty();
     }

@@ -4,7 +4,6 @@
 
 package frc.robot;
 
-import java.util.Optional;
 
 import edu.wpi.first.math.Matrix;
 import edu.wpi.first.math.VecBuilder;
@@ -15,8 +14,6 @@ import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
 import edu.wpi.first.math.util.Units;
-import edu.wpi.first.wpilibj.DriverStation;
-import edu.wpi.first.wpilibj.DriverStation.Alliance;
 
 //import edu.wpi.first.math.util.Units;
 
@@ -55,10 +52,10 @@ public final class Constants {
     // Motor rotations per one full turret rotation (encoder counts motor shaft rotations).
     public static final double kMotorRotationsPerTurretRotation = kTurretGearTeeth / kMotorGearTeeth;
     // --- HOME + TRAVEL LIMITS (in TURRET rotations) ---
-    // The encoder is RELATIVE, so the code assumes the turret is sitting at its HOME end when
-    // the robot boots and seeds the encoder to kHomeRotations. ALWAYS turn the turret to the
-    // home end before powering on / redeploying (or click "Re-home Turret" on the dashboard
-    // after putting it there by hand).
+    // The encoder is RELATIVE (in the SparkMax), which reads 0 at power-on, so the turret must
+    // be at its HOME end when the robot is POWERED ON. Redeploying does not re-zero it: the
+    // SparkMax stays powered and keeps its count. (Or click "Reset - Zero Turret" on the dashboard
+    // after putting it at home by hand.)
     // The turret can only move between kMinRotations and kMaxRotations. Enforced in two layers:
     // TurretSubsystem.setAngle() and the SparkMax firmware soft limits.
     // The boot position IS zero. It is the + end of travel, so the turret only moves negative.
@@ -97,10 +94,11 @@ public final class Constants {
     public static final double kAimToleranceDegrees = 5.0;
 
     // --- Vision aiming ---
-    final static Optional<Alliance> alliance = DriverStation.getAlliance();
-    public static final int kHubTagId = (alliance.get() == Alliance.Red ? 10 : 26); // AprilTag the turret aims at
-    public static final int kTrenchLeftTagId = (alliance.get() == Alliance.Red ? 6 : 6); // AprilTag the turret aims at
-    public static final int kTrenchRightTagId = (alliance.get() == Alliance.Red ? 6 : 6); // AprilTag the turret aims at
+    // Every AprilTag on each hub (all four faces, 2026 field layout). Which list applies is
+    // decided at the moment of use by SelectHub.isOurHubTag(), NOT here: a constant computed
+    // at class load would lock in whatever alliance the DS had at boot (and crash if none).
+    public static final int[] kRedHubTagIds = {2, 3, 4, 5, 8, 9, 10, 11};
+    public static final int[] kBlueHubTagIds = {18, 19, 20, 21, 24, 25, 26, 27};
   
   }
   /**
@@ -142,6 +140,24 @@ public final class Constants {
     // A single tag can "flip" to a mirror-image solution. Skip single-tag frames whose
     // ambiguity is above this (0 = certain, 1 = coin flip).
     public static final double kMaxSingleTagAmbiguity = 0.2;
+
+    // --- Turret camera fix filtering (VisionSubsystem.updateTurretFix) ---
+    // The turret camera usually sees one small tag, so its heading jumps 20-80 deg on some
+    // frames. Instead of taking every frame as the new truth:
+    // Looser ambiguity limit than the front camera: the heading check below catches the flips.
+    public static final double kTurretMaxTagAmbiguity = 0.4;
+    // Reject a frame whose robot heading differs from the gyro-tracked heading by more than this.
+    public static final double kTurretMaxHeadingJumpDegrees = 15.0;
+    // Fraction of the camera's correction applied per accepted frame (1.0 = old behavior).
+    public static final double kTurretHeadingBlend = 0.2;
+    public static final double kTurretPositionBlend = 0.3;
+    // After this many rejected frames IN A ROW, trust the camera outright (the tracked
+    // heading is probably the wrong one). Tags are often only seen on a fraction of frames,
+    // so keep this small: at 25 it took ~10 s to recover from a bad fix outdoors.
+    public static final int kTurretResyncFrames = 10;
+    // If the last accepted fix is older than this, the tracked pose has been dead-reckoning
+    // too long to judge a new frame by: take the new frame outright.
+    public static final double kTurretFixStaleSeconds = 1.0;
 
     // Ignore any estimate whose average tag distance is beyond this (meters).
     public static final double kMaxAverageTagDistanceMeters = 4.0;

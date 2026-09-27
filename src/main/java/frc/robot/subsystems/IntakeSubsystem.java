@@ -4,8 +4,10 @@ import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.controls.VelocityVoltage;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.NeutralModeValue;
+import com.revrobotics.PersistMode;
 import static com.revrobotics.PersistMode.kPersistParameters;
 import com.revrobotics.RelativeEncoder;
+import com.revrobotics.ResetMode;
 import static com.revrobotics.ResetMode.kResetSafeParameters;
 import com.revrobotics.spark.SparkBase.ControlType;
 import com.revrobotics.spark.SparkClosedLoopController;
@@ -16,6 +18,7 @@ import com.revrobotics.spark.config.SparkMaxConfig;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.wpilibj.DataLogManager;
 import edu.wpi.first.wpilibj.DigitalInput;
+import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
@@ -78,6 +81,33 @@ public class IntakeSubsystem extends SubsystemBase {
         intakepidController = armMotor.getClosedLoopController();
         armEncoder = armMotor.getEncoder();
 
+        // Same as "Reset - Zero Turret": appears in Glass under NetworkTables > SmartDashboard
+        // with a Run button, and works while DISABLED.
+        SmartDashboard.putData("Reset - Zero Intake",
+            Commands.runOnce(this::zeroArm, this).ignoringDisable(true).withName("Reset - Zero Intake"));
+
+        // Coast while this runs so the arm can be pushed up/down by hand; back to brake when it's
+        // cancelled (press again), another intake command takes over, or the robot is enabled.
+        SmartDashboard.putData("Coast Intake Arm",
+            Commands.startEnd(() -> setArmCoast(true), () -> setArmCoast(false), this)
+                .until(DriverStation::isEnabled)
+                .ignoringDisable(true)
+                .withName("Coast Intake Arm"));
+    }
+
+    /** Switch the arm between coast and brake without touching the saved (flash) config. */
+    public void setArmCoast(boolean coast) {
+        armMotor.set(0);
+        SparkMaxConfig idleConfig = new SparkMaxConfig();
+        idleConfig.idleMode(coast ? SparkMaxConfig.IdleMode.kCoast : SparkMaxConfig.IdleMode.kBrake);
+        armMotor.configure(idleConfig, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
+        SmartDashboard.putBoolean("Intake Arm Coasting", coast);
+    }
+
+    /** Declare "the arm is fully UP right now" (IntakeUpPosition = 0) and reset the encoder to match. */
+    public void zeroArm() {
+        armMotor.set(0);
+        armEncoder.setPosition(IntakeConstants.IntakeUpPosition * IntakeConstants.gearRatio);
     }
 
     @Override
