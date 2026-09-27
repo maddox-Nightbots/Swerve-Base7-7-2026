@@ -10,8 +10,11 @@ import com.revrobotics.spark.SparkMax;
 import com.revrobotics.spark.config.SparkMaxConfig;
 
 import edu.wpi.first.math.MathUtil;
+import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.interpolation.TimeInterpolatableBuffer;
 import edu.wpi.first.wpilibj.Alert;
 import edu.wpi.first.wpilibj.Alert.AlertType;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
@@ -44,6 +47,11 @@ public class TurretSubsystem extends SubsystemBase {
 
     private double lastCommandedRotations = TurretConstants.kHomeRotations;
     private boolean atLimit = false;
+
+    // Recent turret angles by FPGA time, so a camera frame can be matched to where the
+    // turret was when the frame was captured (frames arrive tens of ms late).
+    private final TimeInterpolatableBuffer<Double> angleHistory =
+        TimeInterpolatableBuffer.createDoubleBuffer(1.0);
 
     // Dashboard readout, published as the Alert group "Turret". Glass renders "Alerts" natively -
     // the same widget the vendor libs use for Encoders / IMU / Motors / Swerve Drive. A custom
@@ -100,6 +108,7 @@ public class TurretSubsystem extends SubsystemBase {
         encoder.setPosition(TurretConstants.kHomeRotations * TurretConstants.kMotorRotationsPerTurretRotation);
         lastCommandedRotations = TurretConstants.kHomeRotations;
         atLimit = false;
+        angleHistory.clear();
     }
 
     /** Lower travel limit in TURRET rotations. */
@@ -128,6 +137,34 @@ public class TurretSubsystem extends SubsystemBase {
         return encoder.getPosition() / TurretConstants.kMotorRotationsPerTurretRotation;
     }
 
+    /** Turret position in TURRET rotations at an FPGA timestamp (e.g. a camera frame's). */
+    public double getAngleAt(double timestampSeconds) {
+        return angleHistory.getSample(timestampSeconds).orElse(getAngle());
+    }
+
+    // --- Geometry --------------------------------------------------------------------------
+
+    /** Robot-relative shooter heading (CCW-positive, 0 = robot front) at a turret angle. */
+    public static Rotation2d headingForAngle(double turretRotations) {
+        return Rotation2d.fromDegrees(TurretConstants.kHomeHeadingDegrees - turretRotations * 360.0);
+    }
+
+    /**
+     * Turret angle (TURRET rotations) that points the shooter at a robot-relative heading.
+     * Headings in the unreachable gap behind the travel range return the nearer limit.
+     */
+    public double angleForHeading(Rotation2d robotRelativeHeading) {
+        double raw = (TurretConstants.kHomeHeadingDegrees - robotRelativeHeading.getDegrees()) / 360.0;
+        double min = getMinAngle();
+        double max = getMaxAngle();
+        // The one equivalent angle in [min, min + 1). Anything above max is in the gap.
+        double angle = MathUtil.inputModulus(raw, min, min + 1.0);
+        if (angle > max) {
+            angle = (angle - max) < (min + 1.0 - angle) ? max : min;
+        }
+        return angle;
+    }
+
     /** Cut the output. Note this drops closed-loop hold, so the turret coasts. */
     public void stop() {
         turnMotor.set(0.0);
@@ -151,6 +188,7 @@ public class TurretSubsystem extends SubsystemBase {
 
     @Override
     public void periodic() {
+        angleHistory.addSample(Timer.getFPGATimestamp(), getAngle());
         updateAlerts();
 
         // Numeric readouts live under "TurretDiag/" so they stay clear of the

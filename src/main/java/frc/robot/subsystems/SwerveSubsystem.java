@@ -42,6 +42,12 @@ public class SwerveSubsystem extends SubsystemBase {
   // A safety check to ensure PathPlanner (auto-navigation) is ready to use.
   private boolean pathPlannerConfigured = false;
 
+  // At power-on the gyro reads 0 whichever way the robot faces. Same convention as the Y button:
+  // the robot starts facing AWAY from its own driver station, which is field heading 0 on Blue
+  // and 180 on Red. Until the alliance is known (or Y / an auto sets the pose), the heading is
+  // 180 deg wrong on Red, which flips field-oriented driving.
+  private boolean headingSeeded = false;
+
   /**
    * CONSTRUCTOR: This runs once when the robot code starts up.
    */
@@ -122,6 +128,7 @@ this);
    */
   public Command zeroGyroCommand() {
    return runOnce(() -> {
+      headingSeeded = true;
       if(DriverStation.getAlliance().get() == DriverStation.Alliance.Red)
       {
         swerveDrive.zeroGyro();
@@ -157,6 +164,11 @@ this);
     return swerveDrive;
   }
 
+  /** The dashboard field ("Field"), so other code can draw extra objects on it. */
+  public Field2d getField() {
+    return m_field;
+  }
+
   /**
    * Raw yaw straight from the Pigeon IMU (NOT fused odometry), as a Rotation2d,
    * CCW-positive. The turret-aim command differentiates this between loops to learn
@@ -172,6 +184,19 @@ this);
    */
   @Override
   public void periodic() {
+    // Once, while disabled, as soon as the Driver Station reports the alliance: flip the
+    // heading on Red (see headingSeeded). Keeps any turning done since power-on.
+    if (!headingSeeded && DriverStation.isDisabled()) {
+      var alliance = DriverStation.getAlliance();
+      if (alliance.isPresent()) {
+        if (alliance.get() == DriverStation.Alliance.Red) {
+          Pose2d pose = swerveDrive.getPose();
+          swerveDrive.resetOdometry(new Pose2d(pose.getTranslation(), pose.getRotation().plus(Rotation2d.k180deg)));
+        }
+        headingSeeded = true;
+      }
+    }
+
     // Vision corrections are now applied by VisionSubsystem, which feeds AprilTag
     // pose measurements straight into this drive's pose estimator.
     swerveDrive.updateOdometry(); // Calculate new position based on motor rotations

@@ -29,6 +29,12 @@ public class PrepareShot extends Command   {
     ShooterSubsystem shooter;
     HoodSubsystem hood;
 
+    // The last shot computed from a real hub distance. Held while the tag flickers out so the
+    // shooter doesn't drop to close-range settings; null until the hub tag is first seen.
+    private ShooterState lastShot = null;
+    // Whether the hub tag was seen this loop, i.e. the current setpoints match a real distance.
+    private boolean hasDistance = false;
+
     public PrepareShot(ShooterSubsystem shooter, HoodSubsystem hood, Supplier<List<PhotonTrackedTarget>> targetSupplier) {
         addRequirements(shooter, hood);
         this.shooter = shooter;
@@ -41,9 +47,10 @@ public class PrepareShot extends Command   {
             if(target.getFiducialId() == TurretConstants.kHubTagId){
 
                 double distance = PhotonUtils.calculateDistanceToTargetMeters(
-                VisionConstants.kRobotToCameraRight.getTranslation().getZ(),
+                VisionConstants.kTurretToCamera.getTranslation().getZ(),
                 Units.feetToMeters(4.43),
-                VisionConstants.kRobotToCameraRight.getRotation().getY(),
+                // PhotonUtils wants pitch UP positive; Rotation3d has pitch up negative.
+                -VisionConstants.kTurretToCamera.getRotation().getY(),
                 Units.degreesToRadians(target.getPitch()) // Vertical angle from camera to target
             );
 
@@ -57,8 +64,7 @@ public class PrepareShot extends Command   {
     }
 
 
-        private ShooterState getShooterState(){
-        double hubDistance = getTagDistanceMeters(targetSupplier.get());
+        private ShooterState getShooterState(double hubDistance){
 
         // Distance (meters) -> ShooterState (RPM & Angle)
         final InterpolatingTreeMap<Distance, ShooterState> distanceToShotMap = new InterpolatingTreeMap<>(
@@ -86,17 +92,31 @@ public class PrepareShot extends Command   {
         return currentSetpoints;
     }
 
+    /** True only when the setpoints come from a real hub distance AND the shooter is at speed. */
     public boolean isReadyToShoot() {
-        return shooter.isVelocityWithinTolerance();
+        return hasDistance && shooter.isVelocityWithinTolerance();
+    }
+
+    @Override
+    public void initialize() {
+        lastShot = null;
+        hasDistance = false;
     }
 
     @Override
     public void execute() {
         final double distanceToHub = getTagDistanceMeters(targetSupplier.get());
-        final ShooterState shot = getShooterState();
+        hasDistance = distanceToHub > 0.0;
+        if (hasDistance) {
+            lastShot = getShooterState(distanceToHub);
+        }
+        // Before the hub is first seen, pre-spin at the closest table entry. Nothing feeds
+        // until hasDistance is true, so this never fires a ball at the wrong settings.
+        final ShooterState shot = lastShot != null ? lastShot : getShooterState(0.0);
         shooter.setShooterRPM(shot.rpm);
         hood.setPosition(shot.hoodPosition);
         SmartDashboard.putNumber("Distance to Hub (inches)", distanceToHub);
+        SmartDashboard.putBoolean("Shooter/Hub Distance Known", hasDistance);
     }
 
     @Override

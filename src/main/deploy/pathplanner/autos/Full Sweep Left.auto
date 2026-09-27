@@ -11,15 +11,22 @@
           }
         },
         {
-          "type": "named",
+          "type": "deadline",
           "data": {
-            "name": "Intaking"
-          }
-        },
-        {
-          "type": "path",
-          "data": {
-            "pathName": "Move through fuel full Left"
+            "commands": [
+              {
+                "type": "path",
+                "data": {
+                  "pathName": "Move through fuel full Left"
+                }
+              },
+              {
+                "type": "named",
+                "data": {
+                  "name": "Intaking"
+                }
+              }
+            ]
           }
         },
         {

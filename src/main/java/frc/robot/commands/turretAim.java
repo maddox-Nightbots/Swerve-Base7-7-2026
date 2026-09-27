@@ -1,254 +1,95 @@
 package frc.robot.commands;
 
-import java.util.List;
+import java.util.Optional;
 import java.util.function.Supplier;
 
-import org.photonvision.targeting.PhotonTrackedTarget;
-
-import edu.wpi.first.math.MathUtil;
-import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
-import edu.wpi.first.wpilibj.smartdashboard.Field2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import frc.robot.Constants.TurretConstants;
 import frc.robot.SelectHub;
 import frc.robot.subsystems.TurretSubsystem;
-import frc.robot.subsystems.VisionSubsystem;
-// import edu.wpi.first.wpilibj.sysid.SysIdRoutineLog.State;
 
+/**
+ * Field-locked turret aim at the hub center.
+ *
+ * <p>Every loop: take the turret's field position and the robot's field heading, both from the
+ * turret camera ({@code VisionSubsystem}; never the robot pose), work out which way the hub is
+ * relative to the robot, and command the turret to that angle. Between frames the vision
+ * subsystem adds the gyro's turn since the frame, so chassis spin is cancelled right away, and a
+ * late or missing frame can't make the turret chase an old error.
+ *
+ * <p>Until the turret camera has seen a tag once, the turret just holds where it is.
+ */
 public class turretAim extends Command {
-    TurretSubsystem turret;
-    static Supplier<List<PhotonTrackedTarget>> targetSupplier;
-    // Raw Pigeon IMU yaw, used to counter-rotate the turret against chassis spin.
-    Supplier<Rotation2d> gyroYawSupplier;
+    private final TurretSubsystem turret;
+    // Turret axis on the field, from the turret camera (VisionSubsystem::getTurretFieldPosition).
+    private final Supplier<Optional<Translation2d>> turretPositionSupplier;
+    // Robot heading on the field, from the turret camera (VisionSubsystem::getRobotHeadingFromTurretCamera).
+    private final Supplier<Optional<Rotation2d>> robotHeadingSupplier;
 
-    // IMU yaw from the previous loop, so we can measure how far the chassis just
-    // turned.
-    private Rotation2d lastGyroYaw = new Rotation2d();
-    // Turret encoder reading from the previous loop, so we can measure how far the
-    // turret
-    // ACTUALLY moved (used to drain the debt below).
-    private double lastTurretAngle = 0.0;
-    // The counter-rotation the turret still OWES the field target, in turret
-    // rotations.
-    // Every bit of chassis spin is ADDED here, and it is only DRAINED by how far
-    // the turret
-    // physically moved. So if the motor lags, this debt keeps growing -> the
-    // position error
-    // keeps growing -> the motor gets a bigger and bigger signal until it catches
-    // up.
-    private double pendingChassisRotations = 0.0;
-    // Whether the target tag was seen on the most recent loop (dashboard readout
-    // only).
-    private static boolean tagVisible = false;
-    private static boolean tagVisibleTrench = false;
+    // True when the turret is on the hub (within kAimToleranceDegrees) and the hub is inside
+    // the travel range. Only meaningful while this command is running.
+    private boolean aimed = false;
 
-    private static double  lastTagYaw = 0.0;
-    private static double  lastTagYawTrench = 0.0;
-
-    private VisionSubsystem visionSubsystem;
-
-    private Field2d turretField;
-
-    public turretAim(TurretSubsystem turret, Supplier<List<PhotonTrackedTarget>> targetSupplier,
-            Supplier<Rotation2d> gyroYawSupplier, VisionSubsystem visionSubsystem) {
+    public turretAim(TurretSubsystem turret, Supplier<Optional<Translation2d>> turretPositionSupplier,
+            Supplier<Optional<Rotation2d>> robotHeadingSupplier) {
         addRequirements(turret);
         this.turret = turret;
-        turretAim.targetSupplier = targetSupplier;
-        this.gyroYawSupplier = gyroYawSupplier;
-        this.visionSubsystem = visionSubsystem;
+        this.turretPositionSupplier = turretPositionSupplier;
+        this.robotHeadingSupplier = robotHeadingSupplier;
     }
 
     @Override
     public void initialize() {
-        // Seed the baselines so the first loop's deltas aren't huge jumps, and clear
-        // the debt.
-        lastGyroYaw = gyroYawSupplier.get();
-        lastTurretAngle = turret.getAngle();
-        pendingChassisRotations = 0.0;
+        aimed = false;
     }
 
-    /**
-     * @return the target tag's yaw in degrees from the turret camera, or 0 if it
-     *         isn't seen.
-     *         A yaw of 0 also means "already centered", so {@link #tagVisible} is
-     *         set here to tell
-     *         the two apart on the dashboard. Either way 0 means "no vision
-     *         correction this loop".
-     */
-    private double getHubTagYaw(List<PhotonTrackedTarget> targetstoAim) {
-    try{
-    // 1. Grab where the turret is on the field right now
-    // (Replace turretSubsystem.getFieldPose() with your exact method name)
-    Pose2d turretPose = visionSubsystem.getTurretPose();
-    turretField.setRobotPose(turretPose);
-    SmartDashboard.putData("turret Pose", turretField);
-
-    // 2. Get the target hub position from your existing method
-    Translation2d hubCenter = SelectHub.hubPosition(); 
-
-    // 3. Create the field vector pointing from the turret directly to the hub center
-    Translation2d turretToHubVector = hubCenter.minus(turretPose.getTranslation());
-    
-    // 4. Calculate the absolute global field angle to the Hub center
-    Rotation2d globalTargetAngle = new Rotation2d(turretToHubVector.getX(), turretToHubVector.getY());
-
-    // 5. Subtract the turret's current field rotation to get the turret-relative angle delta
-    Rotation2d turretRelativeAngle = globalTargetAngle.minus(turretPose.getRotation());
-
-    // 6. Maintain your original method tracking variables
-    tagVisible = true; 
-    double yawDegrees = turretRelativeAngle.getDegrees();
-    lastTagYaw = yawDegrees;
-
-    SmartDashboard.putNumber("Turret Aiming Angle", yawDegrees);
-    return yawDegrees;
-    }
-    catch(Exception error){
-        return 0.0;
-    }
-}
-
-
-    private static double getTrenchTagYaw(List<PhotonTrackedTarget> targetstoAim) {
-        double yawDegrees = 0.0;
-        tagVisible = false;
-        for (var target : targetstoAim) {
-            if (target.getFiducialId() == TurretConstants.kTrenchLeftTagId) {
-                yawDegrees = target.getYaw() - 10;
-                tagVisibleTrench = true;
-            } else if (target.getFiducialId() == TurretConstants.kTrenchRightTagId) {
-                yawDegrees = target.getYaw() + 10;
-                tagVisibleTrench = true;
-                lastTagYawTrench = yawDegrees;
-            }
-        }
-        return yawDegrees;
-    }
-
-    public Boolean ableToShoot() {
-        return MathUtil.isNear(0, getHubTagYaw(targetSupplier.get()), 5);
-    }
-    public Boolean ableToShootTrench() {
-        return MathUtil.isNear(0, getTrenchTagYaw(targetSupplier.get()), 5);
+    /** Whether the indexer may feed: see {@link #aimed}. */
+    public boolean ableToShoot() {
+        return aimed;
     }
 
     @Override
     public void execute() {
-        // --- 1. Accumulate the chassis spin (Pigeon IMU) into the debt ---
-        // How far the robot rotated since last loop (CCW-positive). Rotation2d.minus()
-        // handles the 180/-180 wraparound for us.
-        Rotation2d currentGyroYaw = gyroYawSupplier.get();
-        double chassisDeltaRotations = currentGyroYaw.minus(lastGyroYaw).getRotations();
-        lastGyroYaw = currentGyroYaw;
-
-        // The turret is bolted to the chassis, so a +delta spin drags it +delta. It
-        // therefore
-        // OWES -delta of counter-rotation to stay pointed at the field target. Add to
-        // the debt.
-        //If the tag is no longer visible it needs to add the last tag yaw, then reset last tag yaw to the pending rotation.
-        if(!tagVisible){
-            pendingChassisRotations += chassisDeltaRotations + lastTagYaw/360;
-            lastTagYaw = 0.0;
-        } else {
-            pendingChassisRotations += chassisDeltaRotations;
+        Optional<Translation2d> maybeTurretPosition = turretPositionSupplier.get();
+        Optional<Rotation2d> maybeRobotHeading = robotHeadingSupplier.get();
+        if (maybeTurretPosition.isEmpty() || maybeRobotHeading.isEmpty()) {
+            // No turret fix yet: hold still rather than aim at a guess.
+            turret.setAngle(turret.getAngle());
+            aimed = false;
+            SmartDashboard.putBoolean("TurretDiag/Aimed", false);
+            return;
         }
 
-        // --- 2. Drain the debt ONLY by how far the turret actually moved ---
-        double measured = turret.getAngle();
-        double actualMovement = measured - lastTurretAngle;
-        lastTurretAngle = measured;
-        pendingChassisRotations -= actualMovement;
+        // Robot-relative heading from the turret axis to the hub.
+        Translation2d toHub = SelectHub.hubPosition().minus(maybeTurretPosition.get());
+        Rotation2d hubHeading = toHub.getAngle().minus(maybeRobotHeading.get());
 
-        // Anti-windup: only keep debt the turret can actually pay without leaving the travel
-        // limits. If it sits pinned at a limit while the robot keeps turning, extra debt would
-        // otherwise pile up and later yank the turret across its range.
-        pendingChassisRotations = MathUtil.clamp(pendingChassisRotations,
-            turret.getMinAngle() - measured, turret.getMaxAngle() - measured);
+        // No wrap-around: a hub behind the travel range just holds at the nearer limit.
+        double targetAngle = turret.angleForHeading(hubHeading);
+        turret.setAngle(targetAngle);
 
-        // --- 3. Vision fine-aim (turret camera): FULL proportional correction,
-        // re-anchored
-        // to the measured position each loop (the form that settled cleanly). No gain.
-        // ---
-        double tagYawDegrees = getHubTagYaw(targetSupplier.get());
-        double visionRotations = tagYawDegrees / 360.0;
+        // Error between where the turret is told to go and the hub (non-zero only when the
+        // hub is out of range), and between where the turret is and where it's told to go.
+        double reachErrorDeg = TurretSubsystem.headingForAngle(targetAngle).minus(hubHeading).getDegrees();
+        double trackErrorDeg = (targetAngle - turret.getAngle()) * 360.0;
+        aimed = Math.abs(reachErrorDeg) <= TurretConstants.kAimToleranceDegrees
+            && Math.abs(trackErrorDeg) <= TurretConstants.kAimToleranceDegrees;
 
-        // Command = where the turret is + counter-rotation still owed + vision
-        // correction.
-        double target = measured + pendingChassisRotations + visionRotations;
-
-        // --- 4. Stay inside the travel limits ---
-        // No wrap-around: a target past a clamp just holds at that clamp, it never jumps to
-        // the other end of the range. setAngle() does the clamping (single source of truth
-        // in the subsystem).
-        turret.setAngle(target);
-
-        SmartDashboard.putNumber("TurretDiag/Aim Target (deg)", target * 360.0);
-        SmartDashboard.putNumber("TurretDiag/Aim Tag Yaw (deg)", tagYawDegrees);
-        SmartDashboard.putNumber("TurretDiag/Aim Chassis Delta (deg)", chassisDeltaRotations * 360.0);
-        SmartDashboard.putNumber("TurretDiag/Aim Pending Debt (deg)", pendingChassisRotations * 360.0);
-        SmartDashboard.putBoolean("TurretDiag/Aim Tag Visible", tagVisible);
-    }
-
-    public void executePass() {
-        // --- 1. Accumulate the chassis spin (Pigeon IMU) into the debt ---
-        // How far the robot rotated since last loop (CCW-positive). Rotation2d.minus()
-        // handles the 180/-180 wraparound for us.
-        Rotation2d currentGyroYaw = gyroYawSupplier.get();
-        double chassisDeltaRotations = currentGyroYaw.minus(lastGyroYaw).getRotations();
-        lastGyroYaw = currentGyroYaw;
-
-        // The turret is bolted to the chassis, so a +delta spin drags it +delta. It
-        // therefore
-        // OWES -delta of counter-rotation to stay pointed at the field target. Add to
-        // the debt.
-        if(!tagVisibleTrench){
-            pendingChassisRotations += chassisDeltaRotations + lastTagYawTrench/360;
-            lastTagYawTrench = 0.0;
-        } else {
-            pendingChassisRotations += chassisDeltaRotations;
-        }
-
-        // --- 2. Drain the debt ONLY by how far the turret actually moved ---
-        double measured = turret.getAngle();
-        double actualMovement = measured - lastTurretAngle;
-        lastTurretAngle = measured;
-        pendingChassisRotations -= actualMovement;
-
-        // Anti-windup: only keep debt the turret can actually pay without leaving the travel
-        // limits. If it sits pinned at a limit while the robot keeps turning, extra debt would
-        // otherwise pile up and later yank the turret across its range.
-        pendingChassisRotations = MathUtil.clamp(pendingChassisRotations,
-            turret.getMinAngle() - measured, turret.getMaxAngle() - measured);
-
-        // --- 3. Vision fine-aim (turret camera): FULL proportional correction,
-        // re-anchored
-        // to the measured position each loop (the form that settled cleanly). No gain.
-        // ---
-        double tagYawDegrees = getTrenchTagYaw(targetSupplier.get());
-        double visionRotations = tagYawDegrees / 360.0;
-
-        // Command = where the turret is + counter-rotation still owed + vision
-        // correction.
-        double target = measured + pendingChassisRotations + visionRotations;
-
-        // --- 4. Stay inside the travel limits ---
-        // No wrap-around: a target past a clamp just holds at that clamp, it never jumps to
-        // the other end of the range. setAngle() does the clamping (single source of truth
-        // in the subsystem).
-        turret.setAngle(target);
-
-        SmartDashboard.putNumber("TurretDiag/Aim Target (deg)", target * 360.0);
-        SmartDashboard.putNumber("TurretDiag/Aim Tag Yaw (deg)", tagYawDegrees);
-        SmartDashboard.putNumber("TurretDiag/Aim Chassis Delta (deg)", chassisDeltaRotations * 360.0);
-        SmartDashboard.putNumber("TurretDiag/Aim Pending Debt (deg)", pendingChassisRotations * 360.0);
-        SmartDashboard.putBoolean("TurretDiag/Aim Tag Visible", tagVisible);
+        SmartDashboard.putNumber("TurretDiag/Aim Target (deg)", targetAngle * 360.0);
+        SmartDashboard.putNumber("TurretDiag/Aim Hub Heading (deg)", hubHeading.getDegrees());
+        SmartDashboard.putNumber("TurretDiag/Aim Hub Distance (m)", toHub.getNorm());
+        SmartDashboard.putNumber("TurretDiag/Aim Out Of Range (deg)", reachErrorDeg);
+        SmartDashboard.putNumber("TurretDiag/Aim Tracking Error (deg)", trackErrorDeg);
+        SmartDashboard.putBoolean("TurretDiag/Aimed", aimed);
     }
 
     @Override
     public void end(boolean interrupted) {
+        aimed = false;
+        SmartDashboard.putBoolean("TurretDiag/Aimed", false);
         turret.stop();
     }
 }

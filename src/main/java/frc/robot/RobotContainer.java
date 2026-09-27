@@ -40,7 +40,7 @@ public class RobotContainer {
   public final TurretSubsystem m_TurretSubsystem = new TurretSubsystem();
   public final ShooterSubsystem m_ShooterSubsystem = new ShooterSubsystem();
     public final IndexerSubsystem m_IndexerSubsystem = new IndexerSubsystem();
-  public final VisionSubsystem m_VisionSubsystem = new VisionSubsystem(m_swerveSubsystem);
+  public final VisionSubsystem m_VisionSubsystem = new VisionSubsystem(m_swerveSubsystem, m_TurretSubsystem);
   public final SpinShooter m_spinShooterCommand = new SpinShooter(m_ShooterSubsystem, m_IndexerSubsystem);
   public final IntakeSubsystem m_IntakeSubsystem = new IntakeSubsystem();
   public final HoodSubsystem m_HoodSubsystem = new HoodSubsystem();
@@ -68,7 +68,7 @@ public class RobotContainer {
     // Register Named Commands for PathPlanner
     //Added the command registers for auto.
     com.pathplanner.lib.auto.NamedCommands.registerCommand("VisionAlign", m_VisionSubsystem.visionAlignCommand());
-    com.pathplanner.lib.auto.NamedCommands.registerCommand("ShootSequence", new ShootSequence(m_ShooterSubsystem, m_HoodSubsystem, m_IntakeSubsystem, m_IndexerSubsystem, () -> m_VisionSubsystem.getTurretCameraTargets(), m_TurretSubsystem, () -> m_swerveSubsystem.getGyroYaw(), () -> m_driverController.getLeftTriggerAxis()>0.5,  m_VisionSubsystem));
+    com.pathplanner.lib.auto.NamedCommands.registerCommand("ShootSequence", new ShootSequence(m_ShooterSubsystem, m_HoodSubsystem, m_IntakeSubsystem, m_IndexerSubsystem, () -> m_VisionSubsystem.getTurretCameraTargets(), m_TurretSubsystem, m_VisionSubsystem::getTurretFieldPosition, m_VisionSubsystem::getRobotHeadingFromTurretCamera, () -> m_driverController.getLeftTriggerAxis()>0.5));
     m_driverController.rightTrigger(RIGHT_TRIGGER_THRESHOLD).onFalse(m_IndexerSubsystem.unstuckBalls().withTimeout(1));
     com.pathplanner.lib.auto.NamedCommands.registerCommand("Intaking", m_IntakeSubsystem.Intaking());
     
@@ -163,27 +163,22 @@ autoChooser = AutoBuilder.buildAutoChooserWithOptionsModifier(stream ->
     // While the driver holds B, the wheels turn into an 'X' shape so the robot cannot be pushed.
     m_driverController.x().whileTrue(m_swerveSubsystem.lockPoseCommand());
 
-    // A BUTTON: Turret aim. Tracks tag 6 with the turret camera AND counter-rotates
-    // against chassis spin (Pigeon IMU) so the aim holds when the robot turns.
-    // Releasing stops the turret.
-    m_driverController.a().whileTrue(new turretAim(
-        m_TurretSubsystem,
-        () -> m_VisionSubsystem.getTurretCameraTargets(),
-        () -> m_swerveSubsystem.getGyroYaw(),
-        m_VisionSubsystem));
+    // A BUTTON: Turret aim. Points the turret at the hub center from the robot's field pose,
+    // so the aim holds while the robot drives and turns. Releasing stops the turret.
+    m_driverController.a().whileTrue(new turretAim(m_TurretSubsystem, m_VisionSubsystem::getTurretFieldPosition, m_VisionSubsystem::getRobotHeadingFromTurretCamera));
 
     // Set hood postion for test
     m_driverController.b().onTrue(Commands.runOnce(() -> m_HoodSubsystem.setPosition(SmartDashboard.getNumber("Target Hood Position", targetHoodPosition)), m_HoodSubsystem));
 
     // RIGHT TRIGGER: Spin the shooter while held for scoring. Releasing stops the shooter.
-    m_driverController.rightTrigger(RIGHT_TRIGGER_THRESHOLD).whileTrue(Commands.parallel(new ShootSequence(m_ShooterSubsystem, m_HoodSubsystem, m_IntakeSubsystem, m_IndexerSubsystem, () -> m_VisionSubsystem.getTurretCameraTargets(), m_TurretSubsystem,  () -> m_swerveSubsystem.getGyroYaw(), () -> m_driverController.getLeftTriggerAxis()>0.5, m_VisionSubsystem), Commands.run(() -> shooting = true)));
+    m_driverController.rightTrigger(RIGHT_TRIGGER_THRESHOLD).whileTrue(Commands.parallel(new ShootSequence(m_ShooterSubsystem, m_HoodSubsystem, m_IntakeSubsystem, m_IndexerSubsystem, () -> m_VisionSubsystem.getTurretCameraTargets(), m_TurretSubsystem, m_VisionSubsystem::getTurretFieldPosition, m_VisionSubsystem::getRobotHeadingFromTurretCamera, () -> m_driverController.getLeftTriggerAxis()>0.5), Commands.run(() -> shooting = true)));
     m_driverController.rightTrigger(RIGHT_TRIGGER_THRESHOLD).onFalse(Commands.parallel(m_IndexerSubsystem.unstuckBalls().withTimeout(1), Commands.runOnce(() -> shooting = false)));
 
     // RIGHT BUMPER: Spin the shooter while held for passing. Releasing stops the shooter.
     // TEMP DISABLED: SpinShooter currently requires the indexer (for testing), which conflicts with
     // indexer.SpinIndexer() inside PassSequence's parallel group and crashes the robot on boot.
     // To re-enable: remove the indexer requirement from SpinShooter, then uncomment the two lines below.
-    m_driverController.rightBumper().whileTrue(new PassSequence(m_ShooterSubsystem, m_IntakeSubsystem, m_IndexerSubsystem, m_VisionSubsystem::getTurretCameraTargets, m_TurretSubsystem, m_HoodSubsystem, () -> m_swerveSubsystem.getGyroYaw(), () -> m_driverController.getLeftTriggerAxis() > 0.5, m_VisionSubsystem));
+    m_driverController.rightBumper().whileTrue(new PassSequence(m_ShooterSubsystem, m_IntakeSubsystem, m_IndexerSubsystem, m_TurretSubsystem, m_HoodSubsystem, m_VisionSubsystem::getTurretFieldPosition, m_VisionSubsystem::getRobotHeadingFromTurretCamera, () -> m_driverController.getLeftTriggerAxis() > 0.5));
     m_driverController.rightBumper().onFalse(m_IndexerSubsystem.unstuckBalls().withTimeout(2));
     m_driverController.povRight().whileTrue(m_spinShooterCommand);
 
@@ -208,6 +203,11 @@ autoChooser = AutoBuilder.buildAutoChooserWithOptionsModifier(stream ->
     SmartDashboard.putNumber("Shooter/Right Trigger Threshold", RIGHT_TRIGGER_THRESHOLD);
     SmartDashboard.putBoolean("Shooter/Right Trigger Pressed", rightTriggerAxis > RIGHT_TRIGGER_THRESHOLD);
     SmartDashboard.putBoolean("Shooter/Command Scheduled", m_spinShooterCommand.isScheduled());
+
+    // Turret position (from the turret camera) as a "Turret" object on the "Field" widget.
+    // The same pose is published for AdvantageScope as "Turret/FieldPose" by VisionSubsystem.
+    m_VisionSubsystem.getTurretFieldPose()
+        .ifPresent(pose -> m_swerveSubsystem.getField().getObject("Turret").setPose(pose));
   }
 
   /**
