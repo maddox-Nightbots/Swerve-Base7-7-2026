@@ -154,6 +154,9 @@ autoChooser = AutoBuilder.buildAutoChooserWithOptionsModifier(stream ->
     m_IntakeSubsystem.setDefaultCommand(Commands.run(() -> m_IntakeSubsystem.Stop(), m_IntakeSubsystem));
     m_IndexerSubsystem.setDefaultCommand(Commands.run(() -> m_IndexerSubsystem.Stop(), m_IndexerSubsystem));
 
+    //set turret to always aim at set positions based on where it is in the field.
+    m_TurretSubsystem.setDefaultCommand(new turretAim(m_TurretSubsystem, m_VisionSubsystem::getTurretFieldPosition, m_VisionSubsystem::getRobotHeadingFromTurretCamera));
+
     // Y BUTTON: Resets the Gyro. 
     // If the robot's "Forward" direction gets confused, the driver points the robot 
     // away from them and presses Y to reset the "North" star.

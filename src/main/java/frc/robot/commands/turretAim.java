@@ -3,6 +3,7 @@ package frc.robot.commands;
 import java.util.Optional;
 import java.util.function.Supplier;
 
+import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
@@ -74,7 +75,7 @@ public class turretAim extends Command {
         }
 
         // Robot-relative heading from the turret axis to the hub.
-        Translation2d toHub = SelectHub.hubPosition().minus(maybeTurretPosition.get());
+        Translation2d toHub = SelectHub.hubPosition(new Pose2d(maybeTurretPosition.get(), new Rotation2d())).minus(maybeTurretPosition.get());
         Rotation2d hubHeading = toHub.getAngle().minus(maybeRobotHeading.get());
 
         // No wrap-around: a hub behind the travel range just holds at the nearer limit.
