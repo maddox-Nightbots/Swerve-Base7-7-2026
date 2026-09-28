@@ -8,6 +8,7 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard; // New Import
 import edu.wpi.first.wpilibj2.command.Command; // New Import
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
+import frc.robot.Constants.IndexerConstants;
 import frc.robot.Constants.OperatorConstants;
 import frc.robot.commands.PassSequence;
 import frc.robot.commands.ShootSequence;
@@ -191,7 +192,7 @@ autoChooser = AutoBuilder.buildAutoChooserWithOptionsModifier(stream ->
     
     m_driverController.leftBumper().whileTrue(Commands.run(() -> {
                                                                   m_IntakeSubsystem.setVelocityRPM(2000);
-                                                                  m_IndexerSubsystem.setIndexerVelocityRPM(2000);}));
+                                                                  m_IndexerSubsystem.setIndexerVelocityRPM(IndexerConstants.kIntakeAssistRPM);}));
     // manual arm controlls for bench-testing the lower limit switch.
     // D-pad up drives the arm up, D-pad down drives it down (blocked at the switch).
     // Restore the line below when the test is done:

@@ -13,6 +13,9 @@ import com.revrobotics.spark.SparkLowLevel.MotorType;
 import com.revrobotics.spark.SparkMax;
 import com.revrobotics.spark.config.SparkMaxConfig;
 
+import java.util.function.BooleanSupplier;
+
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
@@ -76,14 +79,19 @@ public class IndexerSubsystem extends SubsystemBase {
      * @param targetRPM The desired engine speed in Revolutions Per Minute (Max ~6000 RPM)
      */
     public void setIndexerVelocityRPM(double targetRPM) {
+        setIndexerAndFeederRPM(targetRPM, targetRPM);
+    }
+
+    /** Drives the indexer Kraken and the feeder SparkMax at separate velocity targets (RPM). */
+    public void setIndexerAndFeederRPM(double indexerRPM, double feederRPM) {
         // Convert RPM to Rotations Per Second (RPS)
-        double targetRPS = targetRPM / 60.0;
+        double targetRPS = indexerRPM / 60.0;
         // Use the request object to smoothly command the motor
         if (IndexerMotor != null) {
             IndexerMotor.setControl(IndexervelocityRequest.withVelocity(targetRPS));
         }
         SmartDashboard.putNumber("Feeder Speed", FeederEndcoder.getVelocity());
-        FeederController.setSetpoint(targetRPM, ControlType.kVelocity);
+        FeederController.setSetpoint(feederRPM, ControlType.kVelocity);
 
     }
 
@@ -98,15 +106,46 @@ public class IndexerSubsystem extends SubsystemBase {
         }
     }
 
+    /**
+     * Feeds balls into the shooter while shouldFeed is true: the indexer Kraken alternates between
+     * kFeedLowRPM and kFeedHighRPM every kFeedSwitchSeconds, the feeder SparkMax holds
+     * kFeederFeedRPM. Runs 0 RPM whenever shouldFeed is false (and the next feed starts on the low
+     * speed), and stops when the command ends.
+     */
+    public Command feedBalls(BooleanSupplier shouldFeed) {
+        final Timer phase = new Timer();
+        return runEnd(
+            () -> {
+                if (!shouldFeed.getAsBoolean()) {
+                    phase.restart();
+                    setIndexerVelocityRPM(0);
+                    return;
+                }
+                final double period = 2 * IndexerConstants.kFeedSwitchSeconds;
+                final boolean high = phase.get() % period >= IndexerConstants.kFeedSwitchSeconds;
+                setIndexerAndFeederRPM(
+                    high ? IndexerConstants.kFeedHighRPM : IndexerConstants.kFeedLowRPM,
+                    IndexerConstants.kFeederFeedRPM);
+            },
+            () -> setIndexerVelocityRPM(0))
+            .beforeStarting(phase::restart)
+            .withName("FeedBalls");
+    }
+
+    /** Feeds balls into the shooter (alternating speeds) until the command ends. */
+    public Command feedBalls() {
+        return feedBalls(() -> true);
+    }
+
     public Command SpinIndexer(){
         return this.run(() -> {
-            this.setIndexerVelocityRPM(-2000);
+            this.setIndexerVelocityRPM(IndexerConstants.kSlowFeedRPM);
         });
     }
 
     public Command unstuckBalls(){
         return this.runOnce(() -> {
-            this.setIndexerVelocityRPM(2000);
+            this.setIndexerVelocityRPM(IndexerConstants.kUnjamRPM);
         });
     }
 

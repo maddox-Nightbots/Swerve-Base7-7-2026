@@ -11,7 +11,6 @@ import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
-import edu.wpi.first.wpilibj2.command.FunctionalCommand;
 import edu.wpi.first.wpilibj2.command.ParallelCommandGroup;
 import edu.wpi.first.wpilibj2.command.WaitCommand;
 import frc.robot.subsystems.HoodSubsystem;
@@ -32,13 +31,13 @@ import frc.robot.subsystems.TurretSubsystem;
  */
 public class ShootSequence extends ParallelCommandGroup{
 
-    private final double kFeedRPM = -4000;
 
     public ShootSequence(ShooterSubsystem shooter, HoodSubsystem hood, IntakeSubsystem intake,
     IndexerSubsystem indexer, Supplier<List<PhotonTrackedTarget>> targetSupplier, TurretSubsystem turret, Supplier<Optional<Translation2d>> turretPositionSupplier, Supplier<Optional<Rotation2d>> robotHeadingSupplier, BooleanSupplier intaking){
 
-        PrepareShot prepareShot = new PrepareShot(shooter, hood, targetSupplier);
-        turretAim aim = new turretAim(turret, turretPositionSupplier, robotHeadingSupplier);
+        this.shooter = shooter;
+        this.prepareShot = new PrepareShot(shooter, hood, targetSupplier);
+        this.aim = new turretAim(turret, turretPositionSupplier, robotHeadingSupplier);
 
         addCommands(
             aim,
@@ -49,30 +48,32 @@ public class ShootSequence extends ParallelCommandGroup{
             // is off by more than kKeepFeedingAimDegrees or the flywheel sags more than
             // kKeepFeedingRPMTolerance (balls going through pull it down). Otherwise a
             // one-frame tag dropout or aim flicker would stop the feed mid-volley.
-            // setIndexerVelocityRPM(0) stops both the Kraken and the feeder SparkMax.
-            new FunctionalCommand(
-                () -> feeding = false,
-                () -> {
-                    if (feeding) {
-                        feeding = aim.aimErrorDegrees() <= kKeepFeedingAimDegrees
-                            && shooter.isVelocityWithin(kKeepFeedingRPMTolerance);
-                    } else {
-                        feeding = aim.ableToShoot() && prepareShot.isReadyToShoot();
-                    }
-                    indexer.setIndexerVelocityRPM(feeding ? kFeedRPM : 0);
-                    SmartDashboard.putBoolean("Shooter/Feeding", feeding);
-                },
-                interrupted -> {
+            // updateFeeding() decides WHEN to feed; feedBalls() does the alternating-speed feed.
+            indexer.feedBalls(this::updateFeeding)
+                .beforeStarting(() -> feeding = false)
+                .finallyDo(() -> {
                     feeding = false;
-                    indexer.setIndexerVelocityRPM(0);
                     SmartDashboard.putBoolean("Shooter/Feeding", false);
-                },
-                () -> false,
-                indexer)
+                })
         );
+    }
+
+    /** The start/keep feeding latch described above. Called once per loop by feedBalls(). */
+    private boolean updateFeeding() {
+        if (feeding) {
+            feeding = aim.aimErrorDegrees() <= kKeepFeedingAimDegrees
+                && shooter.isVelocityWithin(kKeepFeedingRPMTolerance);
+        } else {
+            feeding = aim.ableToShoot() && prepareShot.isReadyToShoot();
+        }
+        SmartDashboard.putBoolean("Shooter/Feeding", feeding);
+        return feeding;
     }
 
     private static final double kKeepFeedingAimDegrees = 15.0;
     private static final double kKeepFeedingRPMTolerance = 800.0;
+    private final ShooterSubsystem shooter;
+    private final PrepareShot prepareShot;
+    private final turretAim aim;
     private boolean feeding = false;
 }

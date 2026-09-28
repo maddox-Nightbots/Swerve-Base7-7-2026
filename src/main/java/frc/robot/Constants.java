@@ -69,7 +69,7 @@ public final class Constants {
     public static final double kMaxRotations = 0.0;
 
     // --- Closed-loop position PID (SparkMax, in motor rotations) ---
-    public static final double kP = 0.18;
+    public static final double kP = 0.17;
     // Keep I at 0. The SparkMax adds kI * error EVERY 1 ms, with error in MOTOR rotations
     // (14.3 per turret rotation). 0.001 built up to full output within a second of a big move
     // and flung the turret past its target. If I is ever needed, also set an iZone.
@@ -166,6 +166,23 @@ public final class Constants {
     // TEMPORARY: set false to skip the indexer Kraken (TalonFX 54) entirely while it isn't
     // answering on CAN. The feeder SparkMax still runs. Set back to true once it's fixed.
     public static final boolean kEnableIndexerTalon = true;
+
+    // --- Indexer speeds (RPM). Unless noted, each drives BOTH the indexer Kraken and the feeder SparkMax.
+    // Negative = toward the shooter, positive = back toward the intake.
+    // Feeding balls into the shooter: IndexerSubsystem.feedBalls(), used by ShootSequence
+    // (right trigger) and SpinShooter (D-pad right / pass). The indexer Kraken alternates
+    // between these two speeds, spending kFeedSwitchSeconds at each, like the intake's up/down
+    // jiggle, so balls don't sit jammed. The feeder SparkMax stays at kFeederFeedRPM.
+    public static final double kFeederFeedRPM = -4000;
+    public static final double kFeedLowRPM = -2000;
+    public static final double kFeedHighRPM = -3500;
+    public static final double kFeedSwitchSeconds = 2.0;
+    // IndexerSubsystem.SpinIndexer() (currently unused).
+    public static final double kSlowFeedRPM = -2000;
+    // Backing balls off after a shot / pass: IndexerSubsystem.unstuckBalls().
+    public static final double kUnjamRPM = 2000;
+    // Running with the intake while the left bumper is held.
+    public static final double kIntakeAssistRPM = 2000;
   }
 
   public static class IntakeConstants {
