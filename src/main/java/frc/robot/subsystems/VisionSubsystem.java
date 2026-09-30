@@ -43,7 +43,8 @@ import swervelib.SwerveDrive;
  * <p>This replaces the old Limelight-based vision. It runs TWO cameras with separate jobs:
  * <ul>
  *   <li>FRONT camera (chassis-fixed): robot localization. Its poses go into the swerve drive's
- *       pose estimator, which blends them with wheel/gyro data for PathPlanner.</li>
+ *       pose estimator, which blends them with wheel/gyro data for PathPlanner. Each accepted
+ *       frame's own solve also corrects the turret fix (below).</li>
  *   <li>TURRET camera: finds where the TURRET is on the field and which way it faces, from
  *       the camera alone, for aiming only. It never touches the robot pose; see
  *       {@link #getTurretFieldPosition()}.</li>
@@ -253,6 +254,14 @@ public class VisionSubsystem extends SubsystemBase {
 
     lastVisionPose = visionPose;
     lastVisionTimestamp = result.getTimestampSeconds();
+
+    // The same camera-only pose also corrects the turret fix. This camera is fixed to the chassis,
+    // so it keeps seeing tags even when a bad turret fix has the turret pointed away from them.
+    // Uses this frame's own solve, never the fused odometry pose.
+    Translation2d turretPosition = visionPose.getTranslation()
+        .plus(TurretConstants.kRobotToTurret.rotateBy(visionPose.getRotation()));
+    applyTurretFix(turretPosition, visionPose.getRotation(), result.getTimestampSeconds(),
+        "Vision/" + unit.name + "/Turret Fix Status");
     return true;
   }
 
@@ -271,17 +280,32 @@ public class VisionSubsystem extends SubsystemBase {
     double timestamp = result.getTimestampSeconds();
     Rotation2d turretOnRobot = TurretSubsystem.headingForAngle(turret.getAngleAt(timestamp));
     Rotation2d cameraHeading = turretPose.getRotation().minus(turretOnRobot);
-    Rotation2d rawYawAtFrame = rawYawHistory.getSample(timestamp).orElse(rawYaw());
     SmartDashboard.putNumber("Vision/TurretSolve/Turret Field Heading (deg)", turretPose.getRotation().getDegrees());
     SmartDashboard.putNumber("Vision/TurretSolve/Turret Heading On Robot (deg)", turretOnRobot.getDegrees());
     SmartDashboard.putNumber("Vision/TurretSolve/Robot Heading From Camera (deg)", cameraHeading.getDegrees());
+
+    applyTurretFix(turretPose.getTranslation(), cameraHeading, timestamp, statusKey);
+  }
+
+  /**
+   * Take one camera's turret position and robot field heading (from either camera) as the new
+   * turret fix, or blend it in, or reject it as a heading jump.
+   */
+  private void applyTurretFix(Translation2d turretPosition, Rotation2d cameraHeading, double timestamp, String statusKey) {
+    // The two cameras' frames can arrive out of order. An older frame than the current fix
+    // would rewind the fix time, so skip it.
+    if (turretFixPosition != null && timestamp < lastTurretFixTimestamp) {
+      SmartDashboard.putString(statusKey, "skipped: older than current turret fix");
+      return;
+    }
+    Rotation2d rawYawAtFrame = rawYawHistory.getSample(timestamp).orElse(rawYaw());
 
     if (turretFixPosition == null
         || turretFramesRejectedInARow >= VisionConstants.kTurretResyncFrames
         || timestamp - lastTurretFixTimestamp > VisionConstants.kTurretFixStaleSeconds) {
       // First fix, the last fix is stale, or the camera has disagreed long enough that the
       // tracked heading is the wrong one: take the camera outright.
-      turretFixPosition = turretPose.getTranslation();
+      turretFixPosition = turretPosition;
       robotHeadingAtFix = cameraHeading;
       SmartDashboard.putString(statusKey, "turret fix (reset)");
     } else {
@@ -298,7 +322,7 @@ public class VisionSubsystem extends SubsystemBase {
       // Agrees with the gyro: nudge toward the camera instead of snapping to it.
       Translation2d trackedPosition = getTurretFieldPosition().get();
       robotHeadingAtFix = trackedHeading.interpolate(cameraHeading, VisionConstants.kTurretHeadingBlend);
-      turretFixPosition = trackedPosition.interpolate(turretPose.getTranslation(), VisionConstants.kTurretPositionBlend);
+      turretFixPosition = trackedPosition.interpolate(turretPosition, VisionConstants.kTurretPositionBlend);
       SmartDashboard.putString(statusKey, "turret fix");
     }
     turretFramesRejectedInARow = 0;
@@ -308,11 +332,12 @@ public class VisionSubsystem extends SubsystemBase {
   }
 
   /**
-   * Where the turret's rotation axis is on the field, from the turret camera. Between frames
+   * Where the turret's rotation axis is on the field, from the camera tag solves (turret camera,
+   * or the front camera's pose shifted by kRobotToTurret; never the fused odometry). Between frames
    * (or with no tag in view) the last fix is carried along by how far the robot has driven and
    * turned since. Never uses or changes the robot pose.
    *
-   * @return empty until the turret camera has seen a tag once
+   * @return empty until a camera has seen a tag once
    */
   public Optional<Translation2d> getTurretFieldPosition() {
     if (turretFixPosition == null) {
@@ -325,10 +350,10 @@ public class VisionSubsystem extends SubsystemBase {
   }
 
   /**
-   * The robot's field heading as the turret camera sees it: camera-derived at the last fix,
+   * The robot's field heading from the camera tag solves: camera-derived at the last fix,
    * plus how far the gyro has turned since. Independent of the gyro's zero / alliance flip.
    *
-   * @return empty until the turret camera has seen a tag once
+   * @return empty until a camera has seen a tag once
    */
   public Optional<Rotation2d> getRobotHeadingFromTurretCamera() {
     return turretFixPosition == null ? Optional.empty() : Optional.of(robotHeadingNow());

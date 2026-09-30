@@ -16,18 +16,18 @@ import frc.robot.subsystems.TurretSubsystem;
  * Field-locked turret aim at the hub center.
  *
  * <p>Every loop: take the turret's field position and the robot's field heading, both from the
- * turret camera ({@code VisionSubsystem}; never the robot pose), work out which way the hub is
+ * camera tag solves ({@code VisionSubsystem}; turret or front camera, never the fused robot pose), work out which way the hub is
  * relative to the robot, and command the turret to that angle. Between frames the vision
  * subsystem adds the gyro's turn since the frame, so chassis spin is cancelled right away, and a
  * late or missing frame can't make the turret chase an old error.
  *
- * <p>Until the turret camera has seen a tag once, the turret just holds where it is.
+ * <p>Until a camera has seen a tag once, the turret just holds where it is.
  */
 public class turretAim extends Command {
     private final TurretSubsystem turret;
-    // Turret axis on the field, from the turret camera (VisionSubsystem::getTurretFieldPosition).
+    // Turret axis on the field, from the camera tag solves (VisionSubsystem::getTurretFieldPosition).
     private final Supplier<Optional<Translation2d>> turretPositionSupplier;
-    // Robot heading on the field, from the turret camera (VisionSubsystem::getRobotHeadingFromTurretCamera).
+    // Robot heading on the field, from the camera tag solves (VisionSubsystem::getRobotHeadingFromTurretCamera).
     private final Supplier<Optional<Rotation2d>> robotHeadingSupplier;
 
     // True when the turret is on the hub (within kAimToleranceDegrees) and the hub is inside
