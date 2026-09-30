@@ -117,10 +117,13 @@ public final class Constants {
     // Where each camera sits RELATIVE TO THE ROBOT'S CENTER.
     // Translation is (x = forward, y = left, z = up) in METERS.
     // Rotation is (roll, pitch, yaw) in RADIANS: pitch up is negative, yaw left is positive.
-    // These must be accurate or vision poses will be wrong. TODO: measure on the real robot.
+    // These must be accurate or vision poses will be wrong.
+    // Front camera, measured on the 25x25 in frame: 12 in back from the front edge, 2.5 in in from
+    // the right edge, lens 24.5 in off the floor, level (no tilt), turned 30 deg left of straight
+    // ahead (aiming front-left).
     public static final Transform3d kRobotToCameraLeft = new Transform3d(
-        new Translation3d(Units.inchesToMeters(10.0), Units.inchesToMeters(10.0), Units.inchesToMeters(8.0)),
-        new Rotation3d(0.0, Units.degreesToRadians(-20.0), Units.degreesToRadians(30.0)));
+        new Translation3d(Units.inchesToMeters(0.5), Units.inchesToMeters(-10.0), Units.inchesToMeters(24.5)),
+        new Rotation3d(0.0, 0.0, Units.degreesToRadians(30.0)));
     // The turret camera rides ON the turret, facing the same way as the shooter. This is where
     // it sits relative to the turret's rotation axis (TurretConstants.kRobotToTurret) with the
     // turret pointing robot-forward. VisionSubsystem rotates it by the live turret angle for
