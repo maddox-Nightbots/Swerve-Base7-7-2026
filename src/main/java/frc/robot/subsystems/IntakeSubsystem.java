@@ -226,7 +226,7 @@ public class IntakeSubsystem extends SubsystemBase {
         // Set a setpoint once, then wait for the ARM (encoder, not setpoint) to get there.
         // The timeout keeps a blocked arm from stalling the jiggle forever.
         final double low = IntakeConstants.IntakeDownPosition * 3 / 4;
-        final double high = IntakeConstants.IntakeDownPosition / 4;
+        final double high = IntakeConstants.IntakeDownPosition / 3;
         this.setVelocityRPM(-2000);
         return Commands.sequence(
             this.runOnce(() -> setIntakePosition(low)),

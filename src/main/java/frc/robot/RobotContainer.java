@@ -68,7 +68,7 @@ public class RobotContainer {
     // Register Named Commands for PathPlanner
     //Added the command registers for auto.
     com.pathplanner.lib.auto.NamedCommands.registerCommand("VisionAlign", m_VisionSubsystem.visionAlignCommand());
-    com.pathplanner.lib.auto.NamedCommands.registerCommand("ShootSequence", new ShootSequence(m_ShooterSubsystem, m_HoodSubsystem, m_IntakeSubsystem, m_IndexerSubsystem, () -> m_VisionSubsystem.getTurretCameraTargets(), m_TurretSubsystem, m_VisionSubsystem::getTurretFieldPosition, m_VisionSubsystem::getRobotHeadingFromTurretCamera, () -> m_driverController.getLeftTriggerAxis()>0.5));
+    com.pathplanner.lib.auto.NamedCommands.registerCommand("ShootSequence", Commands.parallel(new ShootSequence(m_ShooterSubsystem, m_HoodSubsystem, m_IntakeSubsystem, m_IndexerSubsystem, () -> m_VisionSubsystem.getTurretCameraTargets(), m_TurretSubsystem, () -> m_VisionSubsystem.getTurretFieldPosition(), () -> m_VisionSubsystem.getRobotHeadingFromTurretCamera(), () -> m_driverController.getLeftTriggerAxis()>0.5), Commands.run(() -> shooting = true)));
     m_driverController.rightTrigger(RIGHT_TRIGGER_THRESHOLD).onFalse(m_IndexerSubsystem.unstuckBalls().withTimeout(1));
     com.pathplanner.lib.auto.NamedCommands.registerCommand("Intaking", m_IntakeSubsystem.Intaking());
     
@@ -155,7 +155,7 @@ autoChooser = AutoBuilder.buildAutoChooserWithOptionsModifier(stream ->
     m_IndexerSubsystem.setDefaultCommand(Commands.run(() -> m_IndexerSubsystem.Stop(), m_IndexerSubsystem));
 
     //set turret to always aim at set positions based on where it is in the field.
-    m_TurretSubsystem.setDefaultCommand(new turretAim(m_TurretSubsystem, m_VisionSubsystem::getTurretFieldPosition, m_VisionSubsystem::getRobotHeadingFromTurretCamera));
+    m_TurretSubsystem.setDefaultCommand(new turretAim(m_TurretSubsystem, () -> m_VisionSubsystem.getTurretFieldPosition(), () -> m_VisionSubsystem.getRobotHeadingFromTurretCamera()));
 
     // Y BUTTON: Resets the Gyro. 
     // If the robot's "Forward" direction gets confused, the driver points the robot 
@@ -168,20 +168,20 @@ autoChooser = AutoBuilder.buildAutoChooserWithOptionsModifier(stream ->
 
     // A BUTTON: Turret aim. Points the turret at the hub center from the robot's field pose,
     // so the aim holds while the robot drives and turns. Releasing stops the turret.
-    m_driverController.a().whileTrue(new turretAim(m_TurretSubsystem, m_VisionSubsystem::getTurretFieldPosition, m_VisionSubsystem::getRobotHeadingFromTurretCamera));
+    m_driverController.a().whileTrue(new turretAim(m_TurretSubsystem, () -> m_VisionSubsystem.getTurretFieldPosition(), () -> m_VisionSubsystem.getRobotHeadingFromTurretCamera()));
 
     // Set hood postion for test
     m_driverController.b().onTrue(Commands.runOnce(() -> m_HoodSubsystem.setPosition(SmartDashboard.getNumber("Target Hood Position", targetHoodPosition)), m_HoodSubsystem));
 
     // RIGHT TRIGGER: Spin the shooter while held for scoring. Releasing stops the shooter.
-    m_driverController.rightTrigger(RIGHT_TRIGGER_THRESHOLD).whileTrue(Commands.parallel(new ShootSequence(m_ShooterSubsystem, m_HoodSubsystem, m_IntakeSubsystem, m_IndexerSubsystem, () -> m_VisionSubsystem.getTurretCameraTargets(), m_TurretSubsystem, m_VisionSubsystem::getTurretFieldPosition, m_VisionSubsystem::getRobotHeadingFromTurretCamera, () -> m_driverController.getLeftTriggerAxis()>0.5), Commands.run(() -> shooting = true)));
+    m_driverController.rightTrigger(RIGHT_TRIGGER_THRESHOLD).whileTrue(Commands.parallel(new ShootSequence(m_ShooterSubsystem, m_HoodSubsystem, m_IntakeSubsystem, m_IndexerSubsystem, () -> m_VisionSubsystem.getTurretCameraTargets(), m_TurretSubsystem, () -> m_VisionSubsystem.getTurretFieldPosition(), () -> m_VisionSubsystem.getRobotHeadingFromTurretCamera(), () -> m_driverController.getLeftTriggerAxis()>0.5), Commands.run(() -> shooting = true)));
     m_driverController.rightTrigger(RIGHT_TRIGGER_THRESHOLD).onFalse(Commands.parallel(m_IndexerSubsystem.unstuckBalls().withTimeout(1), Commands.runOnce(() -> shooting = false)));
 
     // RIGHT BUMPER: Spin the shooter while held for passing. Releasing stops the shooter.
     // TEMP DISABLED: SpinShooter currently requires the indexer (for testing), which conflicts with
     // indexer.SpinIndexer() inside PassSequence's parallel group and crashes the robot on boot.
     // To re-enable: remove the indexer requirement from SpinShooter, then uncomment the two lines below.
-    m_driverController.rightBumper().whileTrue(new PassSequence(m_ShooterSubsystem, m_IntakeSubsystem, m_IndexerSubsystem, m_TurretSubsystem, m_HoodSubsystem, m_VisionSubsystem::getTurretFieldPosition, m_VisionSubsystem::getRobotHeadingFromTurretCamera, () -> m_driverController.getLeftTriggerAxis() > 0.5));
+    m_driverController.rightBumper().whileTrue(new PassSequence(m_ShooterSubsystem, m_IntakeSubsystem, m_IndexerSubsystem, m_TurretSubsystem, m_HoodSubsystem, m_VisionSubsystem::getTurretFieldPosition, () -> m_VisionSubsystem.getRobotHeadingFromTurretCamera(), () -> m_driverController.getLeftTriggerAxis() > 0.5));
     m_driverController.rightBumper().onFalse(m_IndexerSubsystem.unstuckBalls().withTimeout(2));
     m_driverController.povRight().whileTrue(m_spinShooterCommand);
 

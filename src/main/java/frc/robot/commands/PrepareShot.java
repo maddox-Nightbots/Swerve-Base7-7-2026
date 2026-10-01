@@ -90,11 +90,11 @@ public class PrepareShot extends Command   {
     );
         // Add your calibration data
         // Distance, new ShooterState(RPM, PivotPosition)
-        distanceToShotMap.put(Inches.of(41.73), new ShooterState(-2875, 0.15));
-        distanceToShotMap.put(Inches.of(84.04), new ShooterState(-3200, 0.40));
-        distanceToShotMap.put(Inches.of(102.36), new ShooterState(-3350, 0.45));
-        distanceToShotMap.put(Inches.of(120.47), new ShooterState(-3375, 0.47));
-        distanceToShotMap.put(Inches.of(138.62), new ShooterState(-3400, 0.48));
+        distanceToShotMap.put(Inches.of(29.92), new ShooterState(-2700, 0.05));
+        distanceToShotMap.put(Inches.of(71.05), new ShooterState(-3000, 0.20));
+        distanceToShotMap.put(Inches.of(107.90), new ShooterState(-3250, 0.35));
+        distanceToShotMap.put(Inches.of(131.32), new ShooterState(-3350, 0.42));
+        distanceToShotMap.put(Inches.of(157.40), new ShooterState(-3425, 0.52));
         // To use it:
         ShooterState currentSetpoints = distanceToShotMap.get(Meters.of(hubDistance));
 
