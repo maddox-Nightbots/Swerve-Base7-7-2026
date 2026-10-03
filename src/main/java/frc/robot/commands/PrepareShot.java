@@ -1,6 +1,7 @@
 package frc.robot.commands;
 
 import java.util.List;
+import java.util.function.DoubleSupplier;
 import java.util.function.Supplier;
 
 import org.photonvision.PhotonUtils;
@@ -40,36 +41,19 @@ public class PrepareShot extends Command   {
     private double lastSeenTime = Double.NEGATIVE_INFINITY;
     private static final double kDistanceGraceSeconds = 1.0;
 
-    public PrepareShot(ShooterSubsystem shooter, HoodSubsystem hood, Supplier<List<PhotonTrackedTarget>> targetSupplier) {
+    private DoubleSupplier hubDistance;
+
+    public PrepareShot(ShooterSubsystem shooter, HoodSubsystem hood, Supplier<List<PhotonTrackedTarget>> targetSupplier, DoubleSupplier hubDistance) {
         addRequirements(shooter, hood);
         this.shooter = shooter;
         this.hood = hood;
         this.targetSupplier = targetSupplier;
+        this.hubDistance = hubDistance;
     }
 
     /** Distance to the nearest visible tag on our hub (any face), or 0.0 if none is in view. */
-    private double getTagDistanceMeters(List<PhotonTrackedTarget> targetstoAim){
-        double nearest = 0.0;
-        for (var target: targetstoAim){
-            if(SelectHub.isOurHubTag(target.getFiducialId())){
-
-                double distance = PhotonUtils.calculateDistanceToTargetMeters(
-                VisionConstants.kTurretToCamera.getTranslation().getZ(),
-                Units.feetToMeters(4.43),
-                // PhotonUtils wants pitch UP positive; Rotation3d has pitch up negative.
-                -VisionConstants.kTurretToCamera.getRotation().getY(),
-                Units.degreesToRadians(target.getPitch()) // Vertical angle from camera to target
-            );
-
-            if (nearest == 0.0 || distance < nearest) {
-                nearest = distance;
-            }
-            }
-        }
-        if (nearest > 0.0) {
-            SmartDashboard.putNumber("HubDistance", nearest);
-        }
-        return nearest;
+    private double getTagDistanceMeters(){
+        return hubDistance.getAsDouble();
     }
 
 
@@ -120,7 +104,7 @@ public class PrepareShot extends Command   {
 
     @Override
     public void execute() {
-        final double distanceToHub = getTagDistanceMeters(targetSupplier.get());
+        final double distanceToHub = getTagDistanceMeters();
         hasDistance = distanceToHub > 0.0;
         if (hasDistance) {
             lastShot = getShooterState(distanceToHub);

@@ -3,6 +3,7 @@ package frc.robot.commands;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.BooleanSupplier;
+import java.util.function.DoubleSupplier;
 import java.util.function.Supplier;
 
 import org.photonvision.targeting.PhotonTrackedTarget;
@@ -35,9 +36,9 @@ public class ShootSequence extends ParallelCommandGroup{
     private final double kFeedRPM = -4000;
 
     public ShootSequence(ShooterSubsystem shooter, HoodSubsystem hood, IntakeSubsystem intake,
-    IndexerSubsystem indexer, Supplier<List<PhotonTrackedTarget>> targetSupplier, TurretSubsystem turret, Supplier<Optional<Translation2d>> turretPositionSupplier, Supplier<Optional<Rotation2d>> robotHeadingSupplier, BooleanSupplier intaking){
+    IndexerSubsystem indexer, Supplier<List<PhotonTrackedTarget>> targetSupplier, TurretSubsystem turret, Supplier<Optional<Translation2d>> turretPositionSupplier, Supplier<Optional<Rotation2d>> robotHeadingSupplier, BooleanSupplier intaking, DoubleSupplier hubDistance){
 
-        PrepareShot prepareShot = new PrepareShot(shooter, hood, targetSupplier);
+        PrepareShot prepareShot = new PrepareShot(shooter, hood, targetSupplier, hubDistance);
         turretAim aim = new turretAim(turret, turretPositionSupplier, robotHeadingSupplier);
 
         addCommands(

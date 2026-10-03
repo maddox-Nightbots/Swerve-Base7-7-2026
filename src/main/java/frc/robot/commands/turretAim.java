@@ -24,6 +24,9 @@ import frc.robot.subsystems.TurretSubsystem;
  * <p>Until a camera has seen a tag once, the turret just holds where it is.
  */
 public class turretAim extends Command {
+
+    private Translation2d toHub;
+    
     private final TurretSubsystem turret;
     // Turret axis on the field, from the camera tag solves (VisionSubsystem::getTurretFieldPosition).
     private final Supplier<Optional<Translation2d>> turretPositionSupplier;
@@ -51,6 +54,10 @@ public class turretAim extends Command {
         aimErrorDeg = Double.POSITIVE_INFINITY;
     }
 
+    public double distanceToHub(){
+        return toHub == null ? 0.0 : toHub.getNorm()-0.46 /*subtracting 0.46 because when we calibrated it was based on distance to tag not hub center*/;
+    }
+
     /** Whether the indexer may feed: see {@link #aimed}. */
     public boolean ableToShoot() {
         return aimed;
@@ -75,7 +82,7 @@ public class turretAim extends Command {
         }
 
         // Robot-relative heading from the turret axis to the hub.
-        Translation2d toHub = SelectHub.hubPosition(new Pose2d(maybeTurretPosition.get(), new Rotation2d())).minus(maybeTurretPosition.get());
+        toHub = SelectHub.hubPosition(new Pose2d(maybeTurretPosition.get(), new Rotation2d())).minus(maybeTurretPosition.get());
         Rotation2d hubHeading = toHub.getAngle().minus(maybeRobotHeading.get());
 
         // No wrap-around: a hub behind the travel range just holds at the nearer limit.
