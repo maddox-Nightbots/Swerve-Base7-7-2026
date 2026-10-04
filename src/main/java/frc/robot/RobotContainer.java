@@ -22,7 +22,6 @@ import frc.robot.subsystems.SwerveSubsystem;
 import frc.robot.subsystems.TurretSubsystem;
 import frc.robot.subsystems.VisionSubsystem;
 import swervelib.SwerveInputStream;
-import java.util.function.DoubleSupplier;
 
 
 /**
@@ -72,7 +71,21 @@ public class RobotContainer {
     // Register Named Commands for PathPlanner
     //Added the command registers for auto.
     com.pathplanner.lib.auto.NamedCommands.registerCommand("VisionAlign", m_VisionSubsystem.visionAlignCommand());
-    com.pathplanner.lib.auto.NamedCommands.registerCommand("ShootSequence", Commands.parallel(new ShootSequence(m_ShooterSubsystem, m_HoodSubsystem, m_IntakeSubsystem, m_IndexerSubsystem, () -> m_VisionSubsystem.getTurretCameraTargets(), m_TurretSubsystem, () -> m_VisionSubsystem.getTurretFieldPosition(), () -> m_VisionSubsystem.getRobotHeadingFromTurretCamera(), () -> m_driverController.getLeftTriggerAxis()>0.5, () -> m_turretAim.distanceToHub()), Commands.run(() -> shooting = true)));
+    com.pathplanner.lib.auto.NamedCommands.registerCommand("ShootSequence", Commands.parallel(
+        new ShootSequence(
+            m_ShooterSubsystem, 
+            m_HoodSubsystem, 
+            m_IntakeSubsystem, 
+            m_IndexerSubsystem, 
+            () -> m_VisionSubsystem.getTurretCameraTargets(), 
+            m_TurretSubsystem, 
+            () -> m_VisionSubsystem.getTurretFieldPosition(), 
+            () -> m_VisionSubsystem.getRobotHeadingFromTurretCamera(), 
+            () -> m_driverController.getLeftTriggerAxis() > 0.5, 
+            m_VisionSubsystem::getLiveDistanceToHub // 🟢 CHANGED: Feeds updating distance continuously!
+        ), 
+        Commands.run(() -> shooting = true)
+    ));
     m_driverController.rightTrigger(RIGHT_TRIGGER_THRESHOLD).onFalse(m_IndexerSubsystem.unstuckBalls().withTimeout(1));
     com.pathplanner.lib.auto.NamedCommands.registerCommand("Intaking", m_IntakeSubsystem.Intaking());
     
@@ -181,8 +194,24 @@ autoChooser = AutoBuilder.buildAutoChooserWithOptionsModifier(stream ->
     m_driverController.leftStick().onTrue(m_IntakeSubsystem.PrepIntake());
 
     // RIGHT TRIGGER: Spin the shooter while held for scoring. Releasing stops the shooter.
-    m_driverController.rightTrigger(RIGHT_TRIGGER_THRESHOLD).whileTrue(Commands.parallel(new ShootSequence(m_ShooterSubsystem, m_HoodSubsystem, m_IntakeSubsystem, m_IndexerSubsystem, () -> m_VisionSubsystem.getTurretCameraTargets(), m_TurretSubsystem, () -> m_VisionSubsystem.getTurretFieldPosition(), () -> m_VisionSubsystem.getRobotHeadingFromTurretCamera(), () -> m_driverController.getLeftTriggerAxis()>0.5, () -> m_turretAim.distanceToHub()), Commands.run(() -> shooting = true)));
-    //m_driverController.rightTrigger(RIGHT_TRIGGER_THRESHOLD).onFalse(Commands.parallel(m_IndexerSubsystem.unstuckBalls().withTimeout(1), Commands.runOnce(() -> shooting = false)));
+    m_driverController.rightTrigger(RIGHT_TRIGGER_THRESHOLD).whileTrue(
+    Commands.parallel(
+        new ShootSequence(
+            m_ShooterSubsystem, 
+            m_HoodSubsystem, 
+            m_IntakeSubsystem, 
+            m_IndexerSubsystem, 
+            () -> m_VisionSubsystem.getTurretCameraTargets(), 
+            m_TurretSubsystem, 
+            () -> m_VisionSubsystem.getTurretFieldPosition(), 
+            () -> m_VisionSubsystem.getRobotHeadingFromTurretCamera(), 
+            () -> m_driverController.getLeftTriggerAxis() > 0.5, 
+            m_VisionSubsystem::getLiveDistanceToHub // 🟢 CHANGED: Feeds updating distance continuously!
+        ), 
+        Commands.run(() -> shooting = true)
+    )
+);
+m_driverController.rightTrigger(RIGHT_TRIGGER_THRESHOLD).onFalse(Commands.parallel(m_IndexerSubsystem.unstuckBalls().withTimeout(3), Commands.runOnce(() -> shooting = false)));
 
     // RIGHT BUMPER: Spin the shooter while held for passing. Releasing stops the shooter.
     // TEMP DISABLED: SpinShooter currently requires the indexer (for testing), which conflicts with

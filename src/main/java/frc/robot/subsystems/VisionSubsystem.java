@@ -33,6 +33,7 @@ import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
 import frc.robot.Constants.TurretConstants;
 import frc.robot.Constants.VisionConstants;
+import frc.robot.SelectHub;
 import swervelib.SwerveDrive;
 
 /**
@@ -581,4 +582,20 @@ public class VisionSubsystem extends SubsystemBase {
   public List<PhotonTrackedTarget> getTurretCameraTargets() {
     return getTargets(VisionConstants.kCameraRightName);
   }
+
+  public double getLiveDistanceToHub() {
+    Optional<Translation2d> maybeTurretPosition = getTurretFieldPosition();
+    
+    if (maybeTurretPosition.isEmpty()) {
+        return 0.0; // No vision fix yet
+    }
+
+    // This is the exact math from your command's execute() method
+    Translation2d liveToHub = SelectHub.hubPosition(
+        new Pose2d(maybeTurretPosition.get(), new Rotation2d())
+    ).minus(maybeTurretPosition.get());
+
+    // Compute the distance and apply your 0.46m tag-to-hub calibration offset
+    return liveToHub.getNorm() - 0.46;
+}
 }
