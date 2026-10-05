@@ -1,37 +1,39 @@
 package frc.robot.commands;
 
 import java.util.Optional;
+import java.util.function.DoubleSupplier;
 import java.util.function.Supplier;
 
-import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
+import frc.robot.Constants.ShootOnMoveConstants;
 import frc.robot.Constants.TurretConstants;
-import frc.robot.SelectHub;
 import frc.robot.subsystems.TurretSubsystem;
 
 /**
  * Field-locked turret aim at the hub center.
  *
- * <p>Every loop: take the turret's field position and the robot's field heading, both from the
- * camera tag solves ({@code VisionSubsystem}; turret or front camera, never the fused robot pose), work out which way the hub is
- * relative to the robot, and command the turret to that angle. Between frames the vision
- * subsystem adds the gyro's turn since the frame, so chassis spin is cancelled right away, and a
- * late or missing frame can't make the turret chase an old error.
+ * <p>Every loop: take the vector from the turret to the (virtual, shoot-on-move) hub and the
+ * robot's field heading, both from the camera tag solves ({@code VisionSubsystem}; turret or front
+ * camera, never the fused robot pose), work out which way the hub is relative to the robot, and
+ * command the turret to that angle. Between frames the vision subsystem adds the gyro's turn since
+ * the frame, so chassis spin is cancelled right away, and a late or missing frame can't make the
+ * turret chase an old error. The aim also leads the chassis' rotation by
+ * {@link ShootOnMoveConstants#kTurretYawLeadSeconds} so the turret doesn't lag a spinning robot.
  *
  * <p>Until a camera has seen a tag once, the turret just holds where it is.
  */
 public class turretAim extends Command {
 
-    private Translation2d toHub;
-    
     private final TurretSubsystem turret;
-    // Turret axis on the field, from the camera tag solves (VisionSubsystem::getTurretFieldPosition).
-    private final Supplier<Optional<Translation2d>> turretPositionSupplier;
+    // Turret axis to the hub (shoot-on-move virtual hub) on the field (VisionSubsystem::getAimVector).
+    private final Supplier<Optional<Translation2d>> aimVectorSupplier;
     // Robot heading on the field, from the camera tag solves (VisionSubsystem::getRobotHeadingFromTurretCamera).
     private final Supplier<Optional<Rotation2d>> robotHeadingSupplier;
+    // Chassis yaw rate, rad/s CCW-positive (VisionSubsystem::getYawRateRadPerSec).
+    private final DoubleSupplier yawRateSupplier;
 
     // True when the turret is on the hub (within kAimToleranceDegrees) and the hub is inside
     // the travel range. Only meaningful while this command is running.
@@ -40,22 +42,19 @@ public class turretAim extends Command {
     // Infinity when there is no turret fix yet.
     private double aimErrorDeg = Double.POSITIVE_INFINITY;
 
-    public turretAim(TurretSubsystem turret, Supplier<Optional<Translation2d>> turretPositionSupplier,
-            Supplier<Optional<Rotation2d>> robotHeadingSupplier) {
+    public turretAim(TurretSubsystem turret, Supplier<Optional<Translation2d>> aimVectorSupplier,
+            Supplier<Optional<Rotation2d>> robotHeadingSupplier, DoubleSupplier yawRateSupplier) {
         addRequirements(turret);
         this.turret = turret;
-        this.turretPositionSupplier = turretPositionSupplier;
+        this.aimVectorSupplier = aimVectorSupplier;
         this.robotHeadingSupplier = robotHeadingSupplier;
+        this.yawRateSupplier = yawRateSupplier;
     }
 
     @Override
     public void initialize() {
         aimed = false;
         aimErrorDeg = Double.POSITIVE_INFINITY;
-    }
-
-    public double distanceToHub(){
-        return toHub == null ? 0.0 : toHub.getNorm()-0.46 /*subtracting 0.46 because when we calibrated it was based on distance to tag not hub center*/;
     }
 
     /** Whether the indexer may feed: see {@link #aimed}. */
@@ -70,9 +69,9 @@ public class turretAim extends Command {
 
     @Override
     public void execute() {
-        Optional<Translation2d> maybeTurretPosition = turretPositionSupplier.get();
+        Optional<Translation2d> maybeToHub = aimVectorSupplier.get();
         Optional<Rotation2d> maybeRobotHeading = robotHeadingSupplier.get();
-        if (maybeTurretPosition.isEmpty() || maybeRobotHeading.isEmpty()) {
+        if (maybeToHub.isEmpty() || maybeRobotHeading.isEmpty()) {
             // No turret fix yet: hold still rather than aim at a guess.
             turret.setAngle(turret.getAngle());
             aimed = false;
@@ -81,9 +80,11 @@ public class turretAim extends Command {
             return;
         }
 
-        // Robot-relative heading from the turret axis to the hub.
-        toHub = SelectHub.hubPosition(new Pose2d(maybeTurretPosition.get(), new Rotation2d())).minus(maybeTurretPosition.get());
-        Rotation2d hubHeading = toHub.getAngle().minus(maybeRobotHeading.get());
+        // Robot-relative heading from the turret axis to the hub. The robot turning CCW swings the
+        // hub CW relative to the robot, so aim where it will be kTurretYawLeadSeconds from now.
+        Translation2d toHub = maybeToHub.get();
+        Rotation2d yawLead = Rotation2d.fromRadians(yawRateSupplier.getAsDouble() * ShootOnMoveConstants.kTurretYawLeadSeconds);
+        Rotation2d hubHeading = toHub.getAngle().minus(maybeRobotHeading.get()).minus(yawLead);
 
         // No wrap-around: a hub behind the travel range just holds at the nearer limit.
         double targetAngle = turret.angleForHeading(hubHeading);

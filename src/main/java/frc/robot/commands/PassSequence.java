@@ -2,6 +2,7 @@ package frc.robot.commands;
 
 import java.util.Optional;
 import java.util.function.BooleanSupplier;
+import java.util.function.DoubleSupplier;
 import java.util.function.Supplier;
 
 import edu.wpi.first.math.geometry.Rotation2d;
@@ -26,9 +27,9 @@ public class PassSequence extends SequentialCommandGroup{
     HoodSubsystem hood;
 
     public PassSequence(ShooterSubsystem shooter, IntakeSubsystem intake, 
-    IndexerSubsystem indexer, TurretSubsystem turret, HoodSubsystem hood, Supplier<Optional<Translation2d>> turretPositionSupplier, Supplier<Optional<Rotation2d>> robotHeadingSupplier, BooleanSupplier intaking){
+    IndexerSubsystem indexer, TurretSubsystem turret, HoodSubsystem hood, Supplier<Optional<Translation2d>> aimVectorSupplier, Supplier<Optional<Rotation2d>> robotHeadingSupplier, DoubleSupplier yawRateSupplier, BooleanSupplier intaking){
 
-        turretAim aim = new turretAim(turret, turretPositionSupplier, robotHeadingSupplier);
+        turretAim aim = new turretAim(turret, aimVectorSupplier, robotHeadingSupplier, yawRateSupplier);
 
         addRequirements(getRequirements());
         this.intake = intake;

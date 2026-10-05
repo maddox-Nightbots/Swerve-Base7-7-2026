@@ -46,7 +46,7 @@ public class RobotContainer {
   public final IntakeSubsystem m_IntakeSubsystem = new IntakeSubsystem();
   public final HoodSubsystem m_HoodSubsystem = new HoodSubsystem();
 
-  public final turretAim m_turretAim = new turretAim(m_TurretSubsystem, () -> m_VisionSubsystem.getTurretFieldPosition(), () -> m_VisionSubsystem.getRobotHeadingFromTurretCamera());
+  public final turretAim m_turretAim = new turretAim(m_TurretSubsystem, m_VisionSubsystem::getAimVector, () -> m_VisionSubsystem.getRobotHeadingFromTurretCamera(), m_VisionSubsystem::getYawRateRadPerSec);
 
 
   private final SendableChooser<Command> autoChooser;
@@ -79,8 +79,9 @@ public class RobotContainer {
             m_IndexerSubsystem, 
             () -> m_VisionSubsystem.getTurretCameraTargets(), 
             m_TurretSubsystem, 
-            () -> m_VisionSubsystem.getTurretFieldPosition(), 
+            m_VisionSubsystem::getAimVector, 
             () -> m_VisionSubsystem.getRobotHeadingFromTurretCamera(), 
+            m_VisionSubsystem::getYawRateRadPerSec, 
             () -> m_driverController.getLeftTriggerAxis() > 0.5, 
             m_VisionSubsystem::getLiveDistanceToHub // 🟢 CHANGED: Feeds updating distance continuously!
         ), 
@@ -203,8 +204,9 @@ autoChooser = AutoBuilder.buildAutoChooserWithOptionsModifier(stream ->
             m_IndexerSubsystem, 
             () -> m_VisionSubsystem.getTurretCameraTargets(), 
             m_TurretSubsystem, 
-            () -> m_VisionSubsystem.getTurretFieldPosition(), 
+            m_VisionSubsystem::getAimVector, 
             () -> m_VisionSubsystem.getRobotHeadingFromTurretCamera(), 
+            m_VisionSubsystem::getYawRateRadPerSec, 
             () -> m_driverController.getLeftTriggerAxis() > 0.5, 
             m_VisionSubsystem::getLiveDistanceToHub // 🟢 CHANGED: Feeds updating distance continuously!
         ), 
@@ -217,7 +219,7 @@ m_driverController.rightTrigger(RIGHT_TRIGGER_THRESHOLD).onFalse(Commands.parall
     // TEMP DISABLED: SpinShooter currently requires the indexer (for testing), which conflicts with
     // indexer.SpinIndexer() inside PassSequence's parallel group and crashes the robot on boot.
     // To re-enable: remove the indexer requirement from SpinShooter, then uncomment the two lines below.
-    m_driverController.rightBumper().whileTrue(new PassSequence(m_ShooterSubsystem, m_IntakeSubsystem, m_IndexerSubsystem, m_TurretSubsystem, m_HoodSubsystem, () -> m_VisionSubsystem.getTurretFieldPosition(), () -> m_VisionSubsystem.getRobotHeadingFromTurretCamera(), () -> m_driverController.getLeftTriggerAxis() > 0.5));
+    m_driverController.rightBumper().whileTrue(new PassSequence(m_ShooterSubsystem, m_IntakeSubsystem, m_IndexerSubsystem, m_TurretSubsystem, m_HoodSubsystem, m_VisionSubsystem::getAimVector, () -> m_VisionSubsystem.getRobotHeadingFromTurretCamera(), m_VisionSubsystem::getYawRateRadPerSec, () -> m_driverController.getLeftTriggerAxis() > 0.5));
     m_driverController.rightBumper().onFalse(m_IndexerSubsystem.unstuckBalls().withTimeout(2));
     m_driverController.povRight().whileTrue(m_spinShooterCommand);
 

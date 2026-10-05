@@ -39,6 +39,34 @@ public final class Constants {
 
     public static final int shooterMotorLeftID = 51;
 
+    // Preferences key (saved on the roboRIO, survives reboots) for a fixed RPM added to EVERY
+    // shot map entry. Positive = faster at every distance. Edit it under "Preferences" in Glass.
+    public static final String kRpmOffsetKey = "Shooter/RPM Offset";
+
+  }
+
+  /**
+   * Shoot on the move: aim at a "virtual hub" shifted against the turret's field velocity by the
+   * ball's flight time, so the ball's sideways carry from the robot's motion lands it in the hub.
+   */
+  public static class ShootOnMoveConstants {
+    // Preferences keys (saved on the roboRIO). Turn it off, or scale the lead, without redeploying.
+    public static final String kEnabledKey = "ShootOnMove/Enabled";
+    public static final String kLeadGainKey = "ShootOnMove/Lead Gain";
+
+    // How far ahead (seconds) the turret aims for the chassis' rotation, to cover the turret
+    // position loop's lag and the loop delay while the robot spins.
+    public static final double kTurretYawLeadSeconds = 0.08;
+
+    // Ball time of flight (seconds) by distance from the turret to the hub CENTER (meters).
+    // PLACEHOLDER values: measure from slow-motion video and tune. Lead Gain scales all of them.
+    public static final double[][] kTimeOfFlight = {
+        {0.76, 0.75},
+        {1.80, 0.85},
+        {2.74, 0.95},
+        {3.34, 1.00},
+        {4.00, 1.10},
+    };
   }
 
   /**
@@ -161,6 +189,15 @@ public final class Constants {
     // If the last accepted fix is older than this, the tracked pose has been dead-reckoning
     // too long to judge a new frame by: take the new frame outright.
     public static final double kTurretFixStaleSeconds = 1.0;
+
+    // --- Camera cross-check (VisionSubsystem) ---
+    // Each camera's turret fix is compared as a residual against the gyro + wheel track at the
+    // frame's own time, so robot motion cancels out. The other camera's residual counts if it is
+    // at most this old.
+    public static final double kCrossCheckWindowSeconds = 0.3;
+    // The two cameras "agree" when their residuals differ by less than these.
+    public static final double kCrossCheckMaxMeters = 0.25;
+    public static final double kCrossCheckMaxDegrees = 5.0;
 
     // Ignore any estimate whose average tag distance is beyond this (meters).
     public static final double kMaxAverageTagDistanceMeters = 4.0;

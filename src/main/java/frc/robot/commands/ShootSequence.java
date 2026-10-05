@@ -36,10 +36,10 @@ public class ShootSequence extends ParallelCommandGroup{
     private final double kFeedRPM = -4000;
 
     public ShootSequence(ShooterSubsystem shooter, HoodSubsystem hood, IntakeSubsystem intake,
-    IndexerSubsystem indexer, Supplier<List<PhotonTrackedTarget>> targetSupplier, TurretSubsystem turret, Supplier<Optional<Translation2d>> turretPositionSupplier, Supplier<Optional<Rotation2d>> robotHeadingSupplier, BooleanSupplier intaking, DoubleSupplier hubDistance){
+    IndexerSubsystem indexer, Supplier<List<PhotonTrackedTarget>> targetSupplier, TurretSubsystem turret, Supplier<Optional<Translation2d>> aimVectorSupplier, Supplier<Optional<Rotation2d>> robotHeadingSupplier, DoubleSupplier yawRateSupplier, BooleanSupplier intaking, DoubleSupplier hubDistance){
 
         PrepareShot prepareShot = new PrepareShot(shooter, hood, targetSupplier, hubDistance);
-        turretAim aim = new turretAim(turret, turretPositionSupplier, robotHeadingSupplier);
+        turretAim aim = new turretAim(turret, aimVectorSupplier, robotHeadingSupplier, yawRateSupplier);
 
         addCommands(
             aim,

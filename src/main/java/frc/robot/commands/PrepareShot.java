@@ -12,9 +12,11 @@ import edu.wpi.first.math.interpolation.InverseInterpolator;
 import static edu.wpi.first.units.Units.Inches;
 import static edu.wpi.first.units.Units.Meters;
 import edu.wpi.first.units.measure.Distance;
+import edu.wpi.first.wpilibj.Preferences;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
+import frc.robot.Constants.ShooterConstants;
 import frc.robot.ShooterState;
 import frc.robot.subsystems.HoodSubsystem;
 import frc.robot.subsystems.ShooterSubsystem;
@@ -45,6 +47,8 @@ public class PrepareShot extends Command   {
         this.hood = hood;
         this.targetSupplier = targetSupplier;
         this.hubDistance = hubDistance;
+        // Creates the key on the roboRIO with 0 the first time; keeps the saved value after that.
+        Preferences.initDouble(ShooterConstants.kRpmOffsetKey, 0.0);
     }
 
     /** Distance to the nearest visible tag on our hub (any face), or 0.0 if none is in view. */
@@ -109,9 +113,12 @@ public class PrepareShot extends Command   {
         // Before the hub is first seen, pre-spin at the closest table entry. Nothing feeds
         // until hasDistance is true, so this never fires a ball at the wrong settings.
         final ShooterState shot = lastShot != null ? lastShot : getShooterState(0.0);
-        shooter.setShooterRPM(shot.rpm);
+        // The map RPMs are negative, so subtracting a positive offset makes every shot FASTER.
+        final double rpm = shot.rpm - Preferences.getDouble(ShooterConstants.kRpmOffsetKey, 0.0);
+        shooter.setShooterRPM(rpm);
         hood.setPosition(shot.hoodPosition);
-        SmartDashboard.putNumber("Distance to Hub (inches)", distanceToHub);
+        SmartDashboard.putNumber("Shooter/Commanded RPM", rpm);
+        SmartDashboard.putNumber("Distance to Hub (m)", distanceToHub);
         SmartDashboard.putBoolean("Shooter/Hub Distance Known", hasDistance);
         SmartDashboard.putBoolean("Shooter/Hub Distance Recent", hasRecentDistance());
     }

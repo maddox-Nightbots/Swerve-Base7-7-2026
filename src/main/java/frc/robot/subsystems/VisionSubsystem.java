@@ -14,6 +14,7 @@ import org.photonvision.targeting.PhotonTrackedTarget;
 import edu.wpi.first.apriltag.AprilTagFieldLayout;
 import edu.wpi.first.apriltag.AprilTagFields;
 import edu.wpi.first.math.Matrix;
+import edu.wpi.first.math.filter.LinearFilter;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation2d;
@@ -21,16 +22,19 @@ import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
+import edu.wpi.first.math.interpolation.InterpolatingDoubleTreeMap;
 import edu.wpi.first.math.interpolation.TimeInterpolatableBuffer;
 import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.networktables.StructPublisher;
+import edu.wpi.first.wpilibj.Preferences;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
+import frc.robot.Constants.ShootOnMoveConstants;
 import frc.robot.Constants.TurretConstants;
 import frc.robot.Constants.VisionConstants;
 import frc.robot.SelectHub;
@@ -50,6 +54,12 @@ import swervelib.SwerveDrive;
  *       the camera alone, for aiming only. It never touches the robot pose; see
  *       {@link #getTurretFieldPosition()}.</li>
  * </ul>
+ *
+ * <p>CROSS-CHECK: before a frame updates the turret fix (or, for the front camera, the robot
+ * pose), it is compared with the other camera's latest frame. Three voters: front camera, turret
+ * camera, and the gyro + wheel track. If the cameras agree, the frame is used (and if they both
+ * disagree with the track, the track is reset to them). If they disagree, the camera closer to the
+ * track wins and the other's frame is thrown out. See {@link #crossCheck}.
  */
 public class VisionSubsystem extends SubsystemBase {
 
@@ -90,6 +100,28 @@ public class VisionSubsystem extends SubsystemBase {
   private final StructPublisher<Pose2d> turretPosePublisher =
       NetworkTableInstance.getDefault().getStructTopic("Turret/FieldPose", Pose2d.struct).publish();
 
+  // Chassis yaw rate from the raw Pigeon yaw, rad/s CCW-positive, lightly filtered.
+  private final LinearFilter yawRateFilter = LinearFilter.singlePoleIIR(0.04, 0.02);
+  private Rotation2d lastRawYaw = null;
+  private double lastYawRateTimestamp = -1.0;
+  private double yawRateRadPerSec = 0.0;
+
+  // Pure gyro + wheel dead-reckoning of the turret axis in the raw-gyro frame. Never corrected by
+  // a camera, so its short-term motion carries one camera's frame to another frame's time.
+  private final TimeInterpolatableBuffer<Pose2d> rawOdomHistory = TimeInterpolatableBuffer.createBuffer(1.0);
+  private Pose2d rawOdom = Pose2d.kZero;
+  // The turret track (getTurretFieldPosition + robotHeadingNow) by FPGA time, to judge frames by.
+  private final TimeInterpolatableBuffer<Pose2d> trackHistory = TimeInterpolatableBuffer.createBuffer(1.0);
+
+  // Ball time of flight (s) by turret-to-hub distance (m), for shoot on the move.
+  private final InterpolatingDoubleTreeMap timeOfFlight = new InterpolatingDoubleTreeMap();
+
+  /**
+   * One camera's candidate turret fix: turret axis position and robot field heading (as a Pose2d)
+   * at the frame time. onAccept runs only if it survives the cross-check.
+   */
+  private record TurretCandidate(CameraUnit unit, Pose2d pose, double timestamp, String statusKey, Runnable onAccept) {}
+
   /**
    * Bundles a camera together with the pose estimator that interprets its images.
    */
@@ -106,6 +138,12 @@ public class VisionSubsystem extends SubsystemBase {
     // The AprilTag targets from this camera's most recent frame. Updated every loop
     // so commands (e.g. turret aim) can read fresh detections.
     List<PhotonTrackedTarget> latestTargets = new ArrayList<>();
+    // This camera's latest candidate turret fix (cross-check), and how far it was from the track
+    // (cross-check score units, see trackError). Null until the first one.
+    TurretCandidate lastCandidate = null;
+    double lastCandidateTrackError = 0.0;
+    // How many cross-check votes this camera has lost.
+    int crossCheckLosses = 0;
 
     CameraUnit(String name, PhotonCamera camera, PhotonPoseEstimator estimator, boolean onTurret) {
       this.name = name;
@@ -133,6 +171,13 @@ public class VisionSubsystem extends SubsystemBase {
     // solveTurretCamera() does its own geometry).
     addCamera(VisionConstants.kCameraLeftName, VisionConstants.kRobotToCameraLeft, false);
     addCamera(VisionConstants.kCameraRightName, VisionConstants.kTurretToCamera, true);
+
+    for (double[] point : ShootOnMoveConstants.kTimeOfFlight) {
+      timeOfFlight.put(point[0], point[1]);
+    }
+    // Saved on the roboRIO: created with these defaults once, then keep whatever was set.
+    Preferences.initBoolean(ShootOnMoveConstants.kEnabledKey, true);
+    Preferences.initDouble(ShootOnMoveConstants.kLeadGainKey, 1.0);
   }
 
   /**
@@ -160,22 +205,29 @@ public class VisionSubsystem extends SubsystemBase {
    */
   @Override
   public void periodic() {
-    int acceptedThisLoop = 0;
+    int[] acceptedThisLoop = {0};
     double now = Timer.getFPGATimestamp();
     rawYawHistory.addSample(now, rawYaw());
+    updateYawRate(now);
+    updateRawOdom(now);
     updateTravelled(now);
+    if (turretFixPosition != null) {
+      trackHistory.addSample(now, new Pose2d(getTurretFieldPosition().get(), robotHeadingNow()));
+    }
 
+    // Collect every camera's candidate turret fix first, then cross-check and apply them in
+    // frame-time order, so each frame is judged against the other camera's latest one.
+    List<TurretCandidate> candidates = new ArrayList<>();
     for (CameraUnit unit : cameras) {
       // getAllUnreadResults() returns every frame that arrived since we last checked.
       // Processing all of them (instead of just the newest) keeps timestamps honest.
       List<PhotonPipelineResult> results = unit.camera.getAllUnreadResults();
 
       for (PhotonPipelineResult result : results) {
-        if (unit.onTurret) {
-          updateTurretFix(unit, result);
-        } else if (addRobotPoseMeasurement(unit, result)) {
-          acceptedThisLoop++;
-        }
+        Optional<TurretCandidate> candidate = unit.onTurret
+            ? turretCameraCandidate(unit, result)
+            : frontCameraCandidate(unit, result, () -> acceptedThisLoop[0]++);
+        candidate.ifPresent(candidates::add);
       }
 
       // Publish per-camera targeting data from the newest frame we received this loop.
@@ -187,9 +239,19 @@ public class VisionSubsystem extends SubsystemBase {
       }
     }
 
+    candidates.sort((a, b) -> Double.compare(a.timestamp(), b.timestamp()));
+    for (TurretCandidate candidate : candidates) {
+      Optional<Boolean> verdict = crossCheck(candidate);
+      if (verdict.isPresent()) {
+        candidate.onAccept().run();
+        applyTurretFix(candidate.pose().getTranslation(), candidate.pose().getRotation(),
+            candidate.timestamp(), candidate.statusKey(), verdict.get());
+      }
+    }
+
     // Overall vision health so drivers/programmers can see vision is alive.
-    SmartDashboard.putBoolean("Vision/HasTarget", acceptedThisLoop > 0);
-    SmartDashboard.putNumber("Vision/AcceptedMeasurements", acceptedThisLoop);
+    SmartDashboard.putBoolean("Vision/HasTarget", acceptedThisLoop[0] > 0);
+    SmartDashboard.putNumber("Vision/AcceptedMeasurements", acceptedThisLoop[0]);
     if (lastVisionPose != null) {
       SmartDashboard.putNumber("Vision/LastX", lastVisionPose.getX());
       SmartDashboard.putNumber("Vision/LastY", lastVisionPose.getY());
@@ -199,6 +261,93 @@ public class VisionSubsystem extends SubsystemBase {
     getTurretFieldPose().ifPresent(turretPosePublisher::set);
     SmartDashboard.putBoolean("Vision/Turret Fix Known", turretFixPosition != null);
     SmartDashboard.putNumber("Vision/Turret Fix Age (s)", turretFixPosition != null ? now - lastTurretFixTimestamp : -1.0);
+    for (CameraUnit unit : cameras) {
+      SmartDashboard.putNumber("Vision/CrossCheck/" + unit.name + " Losses", unit.crossCheckLosses);
+    }
+    publishShootOnMove();
+  }
+
+  /** Differentiate the raw Pigeon yaw for the chassis yaw rate. */
+  private void updateYawRate(double now) {
+    Rotation2d yaw = rawYaw();
+    if (lastRawYaw != null && now > lastYawRateTimestamp) {
+      // minus() wraps to +/-180, so crossing the +/-180 seam doesn't spike the rate.
+      double rate = yaw.minus(lastRawYaw).getRadians() / (now - lastYawRateTimestamp);
+      yawRateRadPerSec = yawRateFilter.calculate(rate);
+    }
+    lastRawYaw = yaw;
+    lastYawRateTimestamp = now;
+  }
+
+  /** Chassis yaw rate, rad/s CCW-positive, from the Pigeon. */
+  public double getYawRateRadPerSec() {
+    return yawRateRadPerSec;
+  }
+
+  /** Turret axis velocity in the ROBOT frame (m/s): wheel speeds plus the swing of an off-center turret. */
+  private Translation2d turretRobotRelativeVelocity() {
+    ChassisSpeeds v = swerveDrive.getRobotVelocity();
+    Translation2d r = TurretConstants.kRobotToTurret;
+    return new Translation2d(v.vxMetersPerSecond - yawRateRadPerSec * r.getY(),
+        v.vyMetersPerSecond + yawRateRadPerSec * r.getX());
+  }
+
+  /** Dead-reckon the turret axis in the raw-gyro frame (see {@link #rawOdomHistory}). */
+  private void updateRawOdom(double now) {
+    Rotation2d yaw = rawYaw();
+    double dt = lastTravelTimestamp >= 0.0 ? now - lastTravelTimestamp : 0.0;
+    Translation2d step = turretRobotRelativeVelocity().times(dt).rotateBy(yaw);
+    rawOdom = new Pose2d(rawOdom.getTranslation().plus(step), yaw);
+    rawOdomHistory.addSample(now, rawOdom);
+  }
+
+  /** Turret axis velocity on the FIELD (m/s), or zero until a camera has seen a tag once. */
+  public Translation2d getTurretFieldVelocity() {
+    if (turretFixPosition == null) {
+      return Translation2d.kZero;
+    }
+    return turretRobotRelativeVelocity().rotateBy(robotHeadingNow());
+  }
+
+  /**
+   * Vector from the turret axis to where it should aim (meters, field frame). With shoot on the
+   * move enabled, that is a virtual hub shifted against the turret's velocity by the ball's flight
+   * time, so the robot's motion carries the ball into the real hub. Its length drives the shot map
+   * and its direction drives the turret.
+   *
+   * @return empty until a camera has seen a tag once
+   */
+  public Optional<Translation2d> getAimVector() {
+    Optional<Translation2d> maybeTurretPosition = getTurretFieldPosition();
+    if (maybeTurretPosition.isEmpty()) {
+      return Optional.empty();
+    }
+    Translation2d turretPosition = maybeTurretPosition.get();
+    Translation2d hub = SelectHub.hubPosition(new Pose2d(turretPosition, Rotation2d.kZero));
+    Translation2d target = hub;
+    if (Preferences.getBoolean(ShootOnMoveConstants.kEnabledKey, true)) {
+      Translation2d velocity = getTurretFieldVelocity();
+      double leadGain = Preferences.getDouble(ShootOnMoveConstants.kLeadGainKey, 1.0);
+      // The flight time depends on the distance, which depends on the lead: a few rounds settle it.
+      for (int i = 0; i < 3; i++) {
+        double flightTime = timeOfFlight.get(target.minus(turretPosition).getNorm());
+        target = hub.minus(velocity.times(flightTime * leadGain));
+      }
+    }
+    return Optional.of(target.minus(turretPosition));
+  }
+
+  private void publishShootOnMove() {
+    Translation2d velocity = getTurretFieldVelocity();
+    SmartDashboard.putNumber("ShootOnMove/Velocity X (mps)", velocity.getX());
+    SmartDashboard.putNumber("ShootOnMove/Velocity Y (mps)", velocity.getY());
+    SmartDashboard.putNumber("ShootOnMove/Yaw Rate (deg per s)", Math.toDegrees(yawRateRadPerSec));
+    getTurretFieldPosition().ifPresent(turretPosition -> {
+      Translation2d toHub = SelectHub.hubPosition(new Pose2d(turretPosition, Rotation2d.kZero)).minus(turretPosition);
+      Translation2d toAim = getAimVector().get();
+      SmartDashboard.putNumber("ShootOnMove/Lead (m)", toAim.minus(toHub).getNorm());
+      SmartDashboard.putNumber("ShootOnMove/TOF (s)", timeOfFlight.get(toAim.getNorm()));
+    });
   }
 
   /** Raw Pigeon yaw (see {@link #rawYawHistory}). */
@@ -222,14 +371,17 @@ public class VisionSubsystem extends SubsystemBase {
     lastTravelTimestamp = now;
   }
 
-  /** Front camera: PhotonVision's 3D robot pose into the swerve pose estimator. */
-  private boolean addRobotPoseMeasurement(CameraUnit unit, PhotonPipelineResult result) {
+  /**
+   * Front camera: PhotonVision's 3D robot pose, as a turret-fix candidate. Only if it survives the
+   * cross-check does it go into the swerve pose estimator (onAccept).
+   */
+  private Optional<TurretCandidate> frontCameraCandidate(CameraUnit unit, PhotonPipelineResult result, Runnable countAccepted) {
     String statusKey = "Vision/" + unit.name + "/Status";
 
     Optional<EstimatedRobotPose> maybeEstimate = unit.estimator.update(result);
     if (maybeEstimate.isEmpty()) {
       SmartDashboard.putString(statusKey, "no usable tags");
-      return false;
+      return Optional.empty();
     }
 
     Pose2d visionPose = maybeEstimate.get().estimatedPose.toPose2d();
@@ -241,38 +393,40 @@ public class VisionSubsystem extends SubsystemBase {
     // and can yank the robot's position around.
     if (avgDistance > VisionConstants.kMaxAverageTagDistanceMeters) {
       SmartDashboard.putString(statusKey, String.format("rejected: tags too far (%.1f m)", avgDistance));
-      return false;
+      return Optional.empty();
     }
     if (tagCount == 1 && result.getBestTarget().getPoseAmbiguity() > VisionConstants.kMaxSingleTagAmbiguity) {
       SmartDashboard.putString(statusKey, "rejected: ambiguous single tag");
-      return false;
+      return Optional.empty();
     }
 
-    // Hand the position to the swerve pose estimator. The stdDevs tell it how
-    // much to trust us versus the wheel odometry.
-    swerveDrive.addVisionMeasurement(visionPose, result.getTimestampSeconds(), computeStdDevs(tagCount, avgDistance));
-    SmartDashboard.putString(statusKey, "accepted");
-
-    lastVisionPose = visionPose;
-    lastVisionTimestamp = result.getTimestampSeconds();
+    double timestamp = result.getTimestampSeconds();
+    Runnable onAccept = () -> {
+      // Hand the position to the swerve pose estimator. The stdDevs tell it how
+      // much to trust us versus the wheel odometry.
+      swerveDrive.addVisionMeasurement(visionPose, timestamp, computeStdDevs(tagCount, avgDistance));
+      SmartDashboard.putString(statusKey, "accepted");
+      lastVisionPose = visionPose;
+      lastVisionTimestamp = timestamp;
+      countAccepted.run();
+    };
 
     // The same camera-only pose also corrects the turret fix. This camera is fixed to the chassis,
     // so it keeps seeing tags even when a bad turret fix has the turret pointed away from them.
     // Uses this frame's own solve, never the fused odometry pose.
     Translation2d turretPosition = visionPose.getTranslation()
         .plus(TurretConstants.kRobotToTurret.rotateBy(visionPose.getRotation()));
-    applyTurretFix(turretPosition, visionPose.getRotation(), result.getTimestampSeconds(),
-        "Vision/" + unit.name + "/Turret Fix Status");
-    return true;
+    return Optional.of(new TurretCandidate(unit, new Pose2d(turretPosition, visionPose.getRotation()),
+        timestamp, "Vision/" + unit.name + "/Turret Fix Status", onAccept));
   }
 
-  /** Turret camera: solve the turret's field pose and store it as the new turret fix. */
-  private void updateTurretFix(CameraUnit unit, PhotonPipelineResult result) {
+  /** Turret camera: solve the turret's field pose as a turret-fix candidate. */
+  private Optional<TurretCandidate> turretCameraCandidate(CameraUnit unit, PhotonPipelineResult result) {
     String statusKey = "Vision/" + unit.name + "/Status";
 
     Optional<Pose2d> maybeTurretPose = solveTurretCamera(unit, result, statusKey);
     if (maybeTurretPose.isEmpty()) {
-      return; // solveTurretCamera() already set the status
+      return Optional.empty(); // solveTurretCamera() already set the status
     }
     Pose2d turretPose = maybeTurretPose.get();
 
@@ -285,14 +439,103 @@ public class VisionSubsystem extends SubsystemBase {
     SmartDashboard.putNumber("Vision/TurretSolve/Turret Heading On Robot (deg)", turretOnRobot.getDegrees());
     SmartDashboard.putNumber("Vision/TurretSolve/Robot Heading From Camera (deg)", cameraHeading.getDegrees());
 
-    applyTurretFix(turretPose.getTranslation(), cameraHeading, timestamp, statusKey);
+    return Optional.of(new TurretCandidate(unit, new Pose2d(turretPose.getTranslation(), cameraHeading),
+        timestamp, statusKey, () -> {}));
+  }
+
+  /**
+   * How far a candidate is from the track at its frame time, in cross-check units (1.0 = at the
+   * agreement limit in position or heading). Zero with no track yet.
+   */
+  private double trackError(TurretCandidate candidate) {
+    Optional<Pose2d> track = trackHistory.getSample(candidate.timestamp());
+    return track.map(t -> poseError(candidate.pose(), t)).orElse(0.0);
+  }
+
+  /** Difference between two (turret position, robot heading) poses in cross-check units. */
+  private static double poseError(Pose2d a, Pose2d b) {
+    return Math.max(a.getTranslation().getDistance(b.getTranslation()) / VisionConstants.kCrossCheckMaxMeters,
+        Math.abs(a.getRotation().minus(b.getRotation()).getDegrees()) / VisionConstants.kCrossCheckMaxDegrees);
+  }
+
+  /**
+   * 2-of-3 vote between this candidate, the other camera's latest candidate, and the gyro + wheel
+   * track. The other camera's frame is carried to this frame's time by the uncorrected dead-reckoning
+   * ({@link #rawOdomHistory}), so robot motion between the two frames cancels out.
+   *
+   * <p>A CONSTANT "Vision/CrossCheck/Offset" means a mounting transform is wrong
+   * (kRobotToCameraLeft, kTurretToCamera, or kRobotToTurret), not that a camera is noisy.
+   *
+   * @return empty to reject the candidate; true to force a turret fix reset to it (both cameras
+   *     agree but the track doesn't); false to apply it normally
+   */
+  private Optional<Boolean> crossCheck(TurretCandidate candidate) {
+    CameraUnit unit = candidate.unit();
+    double candidateTrackError = trackError(candidate);
+    TurretCandidate other = null;
+    CameraUnit otherUnit = null;
+    for (CameraUnit u : cameras) {
+      if (u != unit && u.lastCandidate != null
+          && Math.abs(candidate.timestamp() - u.lastCandidate.timestamp()) <= VisionConstants.kCrossCheckWindowSeconds) {
+        other = u.lastCandidate;
+        otherUnit = u;
+      }
+    }
+    double otherTrackError = otherUnit != null ? otherUnit.lastCandidateTrackError : 0.0;
+    unit.lastCandidate = candidate;
+    unit.lastCandidateTrackError = candidateTrackError;
+
+    if (other == null) {
+      // Nothing recent from the other camera: single-camera rules in applyTurretFix().
+      return Optional.of(false);
+    }
+
+    Optional<Pose2d> rawAtCandidate = rawOdomHistory.getSample(candidate.timestamp());
+    Optional<Pose2d> rawAtOther = rawOdomHistory.getSample(other.timestamp());
+    if (rawAtCandidate.isEmpty() || rawAtOther.isEmpty()) {
+      return Optional.of(false);
+    }
+    Pose2d otherNow = other.pose().plus(rawAtCandidate.get().minus(rawAtOther.get()));
+
+    // Offset is always turret camera minus front camera.
+    boolean candidateOnTurret = unit.onTurret;
+    Pose2d turretCam = candidateOnTurret ? candidate.pose() : otherNow;
+    Pose2d frontCam = candidateOnTurret ? otherNow : candidate.pose();
+    boolean agree = poseError(candidate.pose(), otherNow) <= 1.0;
+    SmartDashboard.putNumber("Vision/CrossCheck/Offset X (m)", turretCam.getX() - frontCam.getX());
+    SmartDashboard.putNumber("Vision/CrossCheck/Offset Y (m)", turretCam.getY() - frontCam.getY());
+    SmartDashboard.putNumber("Vision/CrossCheck/Offset Heading (deg)",
+        turretCam.getRotation().minus(frontCam.getRotation()).getDegrees());
+    SmartDashboard.putBoolean("Vision/CrossCheck/Agree", agree);
+
+    if (agree) {
+      // Two cameras outvote the track: if the track is off by more than the heading-jump limit,
+      // reset it now instead of rejecting frames until kTurretResyncFrames.
+      boolean trackIsOff = turretFixPosition != null && trackHistory.getSample(candidate.timestamp())
+          .map(t -> Math.abs(candidate.pose().getRotation().minus(t.getRotation()).getDegrees())
+              > VisionConstants.kTurretMaxHeadingJumpDegrees)
+          .orElse(false);
+      return Optional.of(trackIsOff);
+    }
+
+    // Disagree: the camera closer to the track wins.
+    if (turretFixPosition == null || candidateTrackError <= otherTrackError) {
+      otherUnit.crossCheckLosses++;
+      return Optional.of(false);
+    }
+    unit.crossCheckLosses++;
+    SmartDashboard.putString(candidate.statusKey(), "rejected: disagrees with " + otherUnit.name);
+    // The front camera's frame is also kept out of the robot pose.
+    SmartDashboard.putString("Vision/" + unit.name + "/Status", "rejected: disagrees with " + otherUnit.name);
+    return Optional.empty();
   }
 
   /**
    * Take one camera's turret position and robot field heading (from either camera) as the new
    * turret fix, or blend it in, or reject it as a heading jump.
    */
-  private void applyTurretFix(Translation2d turretPosition, Rotation2d cameraHeading, double timestamp, String statusKey) {
+  private void applyTurretFix(Translation2d turretPosition, Rotation2d cameraHeading, double timestamp, String statusKey,
+      boolean forceReset) {
     // The two cameras' frames can arrive out of order. An older frame than the current fix
     // would rewind the fix time, so skip it.
     if (turretFixPosition != null && timestamp < lastTurretFixTimestamp) {
@@ -302,10 +545,11 @@ public class VisionSubsystem extends SubsystemBase {
     Rotation2d rawYawAtFrame = rawYawHistory.getSample(timestamp).orElse(rawYaw());
 
     if (turretFixPosition == null
+        || forceReset
         || turretFramesRejectedInARow >= VisionConstants.kTurretResyncFrames
         || timestamp - lastTurretFixTimestamp > VisionConstants.kTurretFixStaleSeconds) {
-      // First fix, the last fix is stale, or the camera has disagreed long enough that the
-      // tracked heading is the wrong one: take the camera outright.
+      // First fix, the last fix is stale, both cameras agree against the track, or the camera
+      // has disagreed long enough that the tracked heading is the wrong one: take it outright.
       turretFixPosition = turretPosition;
       robotHeadingAtFix = cameraHeading;
       SmartDashboard.putString(statusKey, "turret fix (reset)");
@@ -583,19 +827,11 @@ public class VisionSubsystem extends SubsystemBase {
     return getTargets(VisionConstants.kCameraRightName);
   }
 
+  /**
+   * Distance for the shot map: turret to the (shoot-on-move virtual) hub, minus 0.54 m because
+   * the map was calibrated to the tag, not the hub center. 0.0 until a camera has seen a tag once.
+   */
   public double getLiveDistanceToHub() {
-    Optional<Translation2d> maybeTurretPosition = getTurretFieldPosition();
-    
-    if (maybeTurretPosition.isEmpty()) {
-        return 0.0; // No vision fix yet
-    }
-
-    // This is the exact math from your command's execute() method
-    Translation2d liveToHub = SelectHub.hubPosition(
-        new Pose2d(maybeTurretPosition.get(), new Rotation2d())
-    ).minus(maybeTurretPosition.get());
-
-    // Compute the distance and apply your 0.46m tag-to-hub calibration offset
-    return liveToHub.getNorm() - 0.54;
-}
+    return getAimVector().map(toHub -> toHub.getNorm() - 0.54).orElse(0.0);
+  }
 }
