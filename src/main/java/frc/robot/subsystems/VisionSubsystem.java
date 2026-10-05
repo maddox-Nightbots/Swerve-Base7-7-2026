@@ -596,6 +596,6 @@ public class VisionSubsystem extends SubsystemBase {
     ).minus(maybeTurretPosition.get());
 
     // Compute the distance and apply your 0.46m tag-to-hub calibration offset
-    return liveToHub.getNorm() - 0.46;
+    return liveToHub.getNorm() - 0.54;
 }
 }

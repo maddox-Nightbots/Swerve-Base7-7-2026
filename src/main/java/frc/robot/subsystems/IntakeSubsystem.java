@@ -227,7 +227,7 @@ public class IntakeSubsystem extends SubsystemBase {
         // The timeout keeps a blocked arm from stalling the jiggle forever.
         final double low = IntakeConstants.IntakeDownPosition * 3 / 4;
         final double high = IntakeConstants.IntakeDownPosition / 3;
-        this.setVelocityRPM(-2000);
+        setVelocityRPM(-2000);
         return Commands.sequence(
             this.runOnce(() -> setIntakePosition(low)),
             Commands.waitUntil(() -> MathUtil.isNear(low, getArmPosition(), 0.02)),
