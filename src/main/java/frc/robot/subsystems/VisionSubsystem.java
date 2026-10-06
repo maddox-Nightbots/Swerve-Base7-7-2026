@@ -35,6 +35,7 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
 import frc.robot.Constants.ShootOnMoveConstants;
+import frc.robot.Constants.ShooterConstants;
 import frc.robot.Constants.TurretConstants;
 import frc.robot.Constants.VisionConstants;
 import frc.robot.SelectHub;
@@ -173,8 +174,10 @@ public class VisionSubsystem extends SubsystemBase {
     addCamera(VisionConstants.kCameraRightName, VisionConstants.kTurretToCamera, true);
 
     for (double[] point : ShootOnMoveConstants.kTimeOfFlight) {
-      timeOfFlight.put(point[0], point[1]);
+      Preferences.initDouble(timeOfFlightKey(point[0]), point[1]);
     }
+    refreshTimeOfFlight();
+    Preferences.initDouble(ShooterConstants.kHubDistanceOffsetKey, ShooterConstants.kHubDistanceOffsetDefault);
     // Saved on the roboRIO: created with these defaults once, then keep whatever was set.
     Preferences.initBoolean(ShootOnMoveConstants.kEnabledKey, true);
     Preferences.initDouble(ShootOnMoveConstants.kLeadGainKey, 1.0);
@@ -209,6 +212,7 @@ public class VisionSubsystem extends SubsystemBase {
     double now = Timer.getFPGATimestamp();
     rawYawHistory.addSample(now, rawYaw());
     updateYawRate(now);
+    refreshTimeOfFlight();
     updateRawOdom(now);
     updateTravelled(now);
     if (turretFixPosition != null) {
@@ -265,6 +269,19 @@ public class VisionSubsystem extends SubsystemBase {
       SmartDashboard.putNumber("Vision/CrossCheck/" + unit.name + " Losses", unit.crossCheckLosses);
     }
     publishShootOnMove();
+  }
+
+  /** Preferences key for the flight time at one table distance. */
+  private static String timeOfFlightKey(double distanceMeters) {
+    return String.format("ShootOnMove/TOF at %.2f m (s)", distanceMeters);
+  }
+
+  /** Reload the flight-time table from Preferences, so dashboard edits apply right away. */
+  private void refreshTimeOfFlight() {
+    timeOfFlight.clear();
+    for (double[] point : ShootOnMoveConstants.kTimeOfFlight) {
+      timeOfFlight.put(point[0], Preferences.getDouble(timeOfFlightKey(point[0]), point[1]));
+    }
   }
 
   /** Differentiate the raw Pigeon yaw for the chassis yaw rate. */
@@ -828,10 +845,12 @@ public class VisionSubsystem extends SubsystemBase {
   }
 
   /**
-   * Distance for the shot map: turret to the (shoot-on-move virtual) hub, minus 0.54 m because
-   * the map was calibrated to the tag, not the hub center. 0.0 until a camera has seen a tag once.
+   * Distance for the shot map: turret to the (shoot-on-move virtual) hub, minus the
+   * "Shooter/Hub Distance Offset (m)" Preference because the map was calibrated to the tag, not
+   * the hub center. 0.0 until a camera has seen a tag once.
    */
   public double getLiveDistanceToHub() {
-    return getAimVector().map(toHub -> toHub.getNorm() - 0.54).orElse(0.0);
+    double offset = Preferences.getDouble(ShooterConstants.kHubDistanceOffsetKey, ShooterConstants.kHubDistanceOffsetDefault);
+    return getAimVector().map(toHub -> toHub.getNorm() - offset).orElse(0.0);
   }
 }

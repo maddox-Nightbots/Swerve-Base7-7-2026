@@ -43,6 +43,13 @@ public final class Constants {
     // shot map entry. Positive = faster at every distance. Edit it under "Preferences" in Glass.
     public static final String kRpmOffsetKey = "Shooter/RPM Offset";
 
+    // Preferences key for the meters subtracted from the turret-to-hub-center distance before the
+    // shot map lookup. The shot map was calibrated by distance to the TAG, and the tag face is
+    // 0.604 m (23.77 in) from the hub center (2026 layout), so this is geometry, not a tuning knob.
+    // kHubDistanceOffsetDefault is only used the first time the key is created.
+    public static final String kHubDistanceOffsetKey = "Shooter/Hub Distance Offset (m)";
+    public static final double kHubDistanceOffsetDefault = 0.6;
+
   }
 
   /**
@@ -59,7 +66,9 @@ public final class Constants {
     public static final double kTurretYawLeadSeconds = 0.08;
 
     // Ball time of flight (seconds) by distance from the turret to the hub CENTER (meters).
-    // PLACEHOLDER values: measure from slow-motion video and tune. Lead Gain scales all of them.
+    // PLACEHOLDER values: tune them. Each row's TIME is a Preference ("ShootOnMove/TOF at <d> m (s)"),
+    // editable from the dashboard without redeploying. These times are only the first-time defaults;
+    // once the keys exist on the roboRIO, the dashboard values win. Lead Gain scales all of them.
     public static final double[][] kTimeOfFlight = {
         {0.76, 0.75},
         {1.80, 0.85},
@@ -116,8 +125,8 @@ public final class Constants {
     // which hub directions count as reachable and what the dashboard shows.
     public static final double kHomeHeadingDegrees = -87.0;
     // Turret rotation axis relative to robot center (x = forward, y = left), METERS.
-    // TODO: measure on the real robot.
-    public static final Translation2d kRobotToTurret = new Translation2d(0.0, 0.0);
+    // Measured: 7 in BEHIND robot center, centered left/right.
+    public static final Translation2d kRobotToTurret = new Translation2d(Units.inchesToMeters(-7.0), 0.0);
     // The indexer only feeds when the turret is within this many degrees of the hub.
     public static final double kAimToleranceDegrees = 5.0;
 
@@ -156,8 +165,9 @@ public final class Constants {
     // it sits relative to the turret's rotation axis (TurretConstants.kRobotToTurret) with the
     // turret pointing robot-forward. VisionSubsystem rotates it by the live turret angle for
     // every frame. It is tilted UP 21.15 deg, which is NEGATIVE pitch here.
+    // Measured: the lens is 6 in forward of the turret's rotation axis (toward where the shooter points).
     public static final Transform3d kTurretToCamera = new Transform3d(
-        new Translation3d(Units.inchesToMeters(0), Units.inchesToMeters(0), Units.inchesToMeters(25)),
+        new Translation3d(Units.inchesToMeters(6), Units.inchesToMeters(0), Units.inchesToMeters(25)),
         new Rotation3d(0.0, Units.degreesToRadians(-21.15), Units.degreesToRadians(0)));
 
     // --- MEASUREMENT TRUST (standard deviations) ---
@@ -215,7 +225,7 @@ public final class Constants {
     public static final boolean kEnableIntakeRollerTalon = true;
 
     public static final double gearRatio = 25*32 / 12;
-    public static final double IntakeDownPosition = -0.27;
+    public static final double IntakeDownPosition = -0.25;
     public static final double IntakeUpPosition = 0.00;
 
     // RoboRIO DIO port for the arm's bottom limit switch. Wired to ground, so
