@@ -21,6 +21,7 @@ import frc.robot.subsystems.ShooterSubsystem;
 import frc.robot.subsystems.SwerveSubsystem;
 import frc.robot.subsystems.TurretSubsystem;
 import frc.robot.subsystems.VisionSubsystem;
+import frc.robot.subsystems.LightSubsystem;
 import swervelib.SwerveInputStream;
 
 
@@ -40,11 +41,13 @@ public class RobotContainer {
 
   public final TurretSubsystem m_TurretSubsystem = new TurretSubsystem();
   public final ShooterSubsystem m_ShooterSubsystem = new ShooterSubsystem();
-    public final IndexerSubsystem m_IndexerSubsystem = new IndexerSubsystem();
+  public final IndexerSubsystem m_IndexerSubsystem = new IndexerSubsystem();
   public final VisionSubsystem m_VisionSubsystem = new VisionSubsystem(m_swerveSubsystem, m_TurretSubsystem);
   public final SpinShooter m_spinShooterCommand = new SpinShooter(m_ShooterSubsystem, m_IndexerSubsystem);
   public final IntakeSubsystem m_IntakeSubsystem = new IntakeSubsystem();
   public final HoodSubsystem m_HoodSubsystem = new HoodSubsystem();
+  public final LightSubsystem m_LightSubsystem = new LightSubsystem();
+
 
   public final turretAim m_turretAim = new turretAim(m_TurretSubsystem, m_VisionSubsystem::getAimVector, () -> m_VisionSubsystem.getRobotHeadingFromTurretCamera(), m_VisionSubsystem::getYawRateRadPerSec);
 
@@ -66,6 +69,9 @@ public class RobotContainer {
   private final CommandXboxController m_driverController = new CommandXboxController(OperatorConstants.kDriverControllerPort);
 
   public RobotContainer() {
+
+    m_LightSubsystem.lightOn(); // Turn on the light at robot startup
+
     SmartDashboard.putNumber("Target Hood Position", targetHoodPosition);
 
     // Register Named Commands for PathPlanner
