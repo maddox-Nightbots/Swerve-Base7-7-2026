@@ -78,7 +78,9 @@ public class PrepareShot extends Command   {
         distanceToShotMap.put(Inches.of(71.05), new ShooterState(-3000, 0.20));
         distanceToShotMap.put(Inches.of(107.90), new ShooterState(-3250, 0.35));
         distanceToShotMap.put(Inches.of(131.32), new ShooterState(-3350, 0.42));
-        distanceToShotMap.put(Inches.of(157.40), new ShooterState(-3425, 0.52));
+        distanceToShotMap.put(Inches.of(157.40), new ShooterState(-3425, 0.476));
+        distanceToShotMap.put(Inches.of(162.89), new ShooterState(-3450, 0.476));
+        distanceToShotMap.put(Inches.of(192.91), new ShooterState(-3475, 0.476));
         // To use it:
         ShooterState currentSetpoints = distanceToShotMap.get(Meters.of(hubDistance));
 

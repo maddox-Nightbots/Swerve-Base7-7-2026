@@ -75,6 +75,7 @@ public class ShooterSubsystem extends SubsystemBase {
     public void stop() {
         ShooterMotorLeft.set(0);
         targetSpeed = 0.0;
+        
     }
 
     @Override

@@ -9,19 +9,18 @@ import edu.wpi.first.wpilibj2.command.Command; // New Import
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import frc.robot.Constants.OperatorConstants;
-import frc.robot.commands.PassSequence;
 import frc.robot.commands.ShootSequence;
 import frc.robot.commands.SpinShooter;
 import frc.robot.commands.turretAim;
 import frc.robot.subsystems.HoodSubsystem;
 import frc.robot.subsystems.IndexerSubsystem;
 import frc.robot.subsystems.IntakeSubsystem;
+import frc.robot.subsystems.LightSubsystem;
 import frc.robot.subsystems.OLEDPongSubsystem;
 import frc.robot.subsystems.ShooterSubsystem;
 import frc.robot.subsystems.SwerveSubsystem;
 import frc.robot.subsystems.TurretSubsystem;
 import frc.robot.subsystems.VisionSubsystem;
-import frc.robot.subsystems.LightSubsystem;
 import swervelib.SwerveInputStream;
 
 
@@ -48,8 +47,7 @@ public class RobotContainer {
   public final HoodSubsystem m_HoodSubsystem = new HoodSubsystem();
   public final LightSubsystem m_LightSubsystem = new LightSubsystem();
 
-
-  public final turretAim m_turretAim = new turretAim(m_TurretSubsystem, m_VisionSubsystem::getAimVector, () -> m_VisionSubsystem.getRobotHeadingFromTurretCamera(), m_VisionSubsystem::getYawRateRadPerSec);
+  public final turretAim m_turretAim = new turretAim(m_TurretSubsystem, m_VisionSubsystem::getAimVector, () -> m_VisionSubsystem.getRobotHeadingFromTurretCamera(), m_VisionSubsystem::getYawRateRadPerSec, m_LightSubsystem);
 
 
   private final SendableChooser<Command> autoChooser;
@@ -60,7 +58,6 @@ public class RobotContainer {
     private static final boolean ENABLE_OLED_PONG = true;
     private final OLEDPongSubsystem pongSubsystem = ENABLE_OLED_PONG ? new OLEDPongSubsystem() : null;
 
-    
 
 
   // 2. CONTROLLERS: Defining the Inputs
@@ -69,8 +66,8 @@ public class RobotContainer {
   private final CommandXboxController m_driverController = new CommandXboxController(OperatorConstants.kDriverControllerPort);
 
   public RobotContainer() {
+  
 
-    m_LightSubsystem.lightOn(); // Turn on the light at robot startup
 
     SmartDashboard.putNumber("Target Hood Position", targetHoodPosition);
 
@@ -89,7 +86,8 @@ public class RobotContainer {
             () -> m_VisionSubsystem.getRobotHeadingFromTurretCamera(), 
             m_VisionSubsystem::getYawRateRadPerSec, 
             () -> m_driverController.getLeftTriggerAxis() > 0.5, 
-            m_VisionSubsystem::getLiveDistanceToHub // 🟢 CHANGED: Feeds updating distance continuously!
+            m_VisionSubsystem::getLiveDistanceToHub, // 🟢 CHANGED: Feeds updating distance continuously!
+            m_LightSubsystem
         ), 
         Commands.run(() -> shooting = true)
     ));
@@ -214,7 +212,8 @@ autoChooser = AutoBuilder.buildAutoChooserWithOptionsModifier(stream ->
             () -> m_VisionSubsystem.getRobotHeadingFromTurretCamera(), 
             m_VisionSubsystem::getYawRateRadPerSec, 
             () -> m_driverController.getLeftTriggerAxis() > 0.5, 
-            m_VisionSubsystem::getLiveDistanceToHub // 🟢 CHANGED: Feeds updating distance continuously!
+            m_VisionSubsystem::getLiveDistanceToHub, // 🟢 CHANGED: Feeds updating distance continuously!
+            m_LightSubsystem
         ), 
         Commands.run(() -> shooting = true)
     )
@@ -225,7 +224,7 @@ m_driverController.rightTrigger(RIGHT_TRIGGER_THRESHOLD).onFalse(Commands.parall
     // TEMP DISABLED: SpinShooter currently requires the indexer (for testing), which conflicts with
     // indexer.SpinIndexer() inside PassSequence's parallel group and crashes the robot on boot.
     // To re-enable: remove the indexer requirement from SpinShooter, then uncomment the two lines below.
-    m_driverController.rightBumper().whileTrue(new PassSequence(m_ShooterSubsystem, m_IntakeSubsystem, m_IndexerSubsystem, m_TurretSubsystem, m_HoodSubsystem, m_VisionSubsystem::getAimVector, () -> m_VisionSubsystem.getRobotHeadingFromTurretCamera(), m_VisionSubsystem::getYawRateRadPerSec, () -> m_driverController.getLeftTriggerAxis() > 0.5));
+    //m_driverController.rightBumper().whileTrue(new PassSequence(m_ShooterSubsystem, m_IntakeSubsystem, m_IndexerSubsystem, m_TurretSubsystem, m_HoodSubsystem, m_VisionSubsystem::getAimVector, () -> m_VisionSubsystem.getRobotHeadingFromTurretCamera(), m_VisionSubsystem::getYawRateRadPerSec, () -> m_driverController.getLeftTriggerAxis() > 0.5));
     m_driverController.rightBumper().onFalse(m_IndexerSubsystem.unstuckBalls().withTimeout(2));
     m_driverController.povRight().whileTrue(m_spinShooterCommand);
 

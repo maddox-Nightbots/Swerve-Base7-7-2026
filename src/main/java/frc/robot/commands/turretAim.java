@@ -10,6 +10,7 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import frc.robot.Constants.ShootOnMoveConstants;
 import frc.robot.Constants.TurretConstants;
+import frc.robot.subsystems.LightSubsystem;
 import frc.robot.subsystems.TurretSubsystem;
 
 /**
@@ -27,6 +28,7 @@ import frc.robot.subsystems.TurretSubsystem;
  */
 public class turretAim extends Command {
 
+
     private final TurretSubsystem turret;
     // Turret axis to the hub (shoot-on-move virtual hub) on the field (VisionSubsystem::getAimVector).
     private final Supplier<Optional<Translation2d>> aimVectorSupplier;
@@ -35,6 +37,7 @@ public class turretAim extends Command {
     // Chassis yaw rate, rad/s CCW-positive (VisionSubsystem::getYawRateRadPerSec).
     private final DoubleSupplier yawRateSupplier;
 
+    private final LightSubsystem m_lightSubsystem;
     // True when the turret is on the hub (within kAimToleranceDegrees) and the hub is inside
     // the travel range. Only meaningful while this command is running.
     private boolean aimed = false;
@@ -43,12 +46,13 @@ public class turretAim extends Command {
     private double aimErrorDeg = Double.POSITIVE_INFINITY;
 
     public turretAim(TurretSubsystem turret, Supplier<Optional<Translation2d>> aimVectorSupplier,
-            Supplier<Optional<Rotation2d>> robotHeadingSupplier, DoubleSupplier yawRateSupplier) {
+            Supplier<Optional<Rotation2d>> robotHeadingSupplier, DoubleSupplier yawRateSupplier, LightSubsystem m_lightSubsystem) {
         addRequirements(turret);
         this.turret = turret;
         this.aimVectorSupplier = aimVectorSupplier;
         this.robotHeadingSupplier = robotHeadingSupplier;
         this.yawRateSupplier = yawRateSupplier;
+        this.m_lightSubsystem = m_lightSubsystem;   
     }
 
     @Override
@@ -103,6 +107,12 @@ public class turretAim extends Command {
         SmartDashboard.putNumber("TurretDiag/Aim Out Of Range (deg)", reachErrorDeg);
         SmartDashboard.putNumber("TurretDiag/Aim Tracking Error (deg)", trackErrorDeg);
         SmartDashboard.putBoolean("TurretDiag/Aimed", aimed);
+
+        if (aimed){
+            m_lightSubsystem.lightOn(); 
+        } else {
+            m_lightSubsystem.lightOff();
+        }
     }
 
     @Override

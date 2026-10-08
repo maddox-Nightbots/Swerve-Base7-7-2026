@@ -18,9 +18,9 @@ import edu.wpi.first.wpilibj2.command.WaitCommand;
 import frc.robot.subsystems.HoodSubsystem;
 import frc.robot.subsystems.IndexerSubsystem;
 import frc.robot.subsystems.IntakeSubsystem;
+import frc.robot.subsystems.LightSubsystem;
 import frc.robot.subsystems.ShooterSubsystem;
 import frc.robot.subsystems.TurretSubsystem;
-
 /**
  * Everything needed to score, all running at once while the trigger is held:
  * aim the turret, spin the shooter / set the hood, jiggle the intake to push balls in,
@@ -36,10 +36,11 @@ public class ShootSequence extends ParallelCommandGroup{
     private final double kFeedRPM = -4000;
 
     public ShootSequence(ShooterSubsystem shooter, HoodSubsystem hood, IntakeSubsystem intake,
-    IndexerSubsystem indexer, Supplier<List<PhotonTrackedTarget>> targetSupplier, TurretSubsystem turret, Supplier<Optional<Translation2d>> aimVectorSupplier, Supplier<Optional<Rotation2d>> robotHeadingSupplier, DoubleSupplier yawRateSupplier, BooleanSupplier intaking, DoubleSupplier hubDistance){
+    IndexerSubsystem indexer, Supplier<List<PhotonTrackedTarget>> targetSupplier, TurretSubsystem turret, Supplier<Optional<Translation2d>> aimVectorSupplier, Supplier<Optional<Rotation2d>> robotHeadingSupplier, DoubleSupplier yawRateSupplier, BooleanSupplier intaking, DoubleSupplier hubDistance, LightSubsystem lightSubsystem){
 
         PrepareShot prepareShot = new PrepareShot(shooter, hood, targetSupplier, hubDistance);
-        turretAim aim = new turretAim(turret, aimVectorSupplier, robotHeadingSupplier, yawRateSupplier);
+        LightSubsystem m_LightSubsystem = lightSubsystem;
+        turretAim aim = new turretAim(turret, aimVectorSupplier, robotHeadingSupplier, yawRateSupplier, m_LightSubsystem);
 
         addCommands(
             aim,

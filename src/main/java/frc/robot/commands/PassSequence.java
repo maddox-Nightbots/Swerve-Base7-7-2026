@@ -15,6 +15,7 @@ import frc.robot.Constants;
 import frc.robot.subsystems.HoodSubsystem;
 import frc.robot.subsystems.IndexerSubsystem;
 import frc.robot.subsystems.IntakeSubsystem;
+import frc.robot.subsystems.LightSubsystem;
 import frc.robot.subsystems.ShooterSubsystem;
 import frc.robot.subsystems.TurretSubsystem;
 
@@ -27,9 +28,9 @@ public class PassSequence extends SequentialCommandGroup{
     HoodSubsystem hood;
 
     public PassSequence(ShooterSubsystem shooter, IntakeSubsystem intake, 
-    IndexerSubsystem indexer, TurretSubsystem turret, HoodSubsystem hood, Supplier<Optional<Translation2d>> aimVectorSupplier, Supplier<Optional<Rotation2d>> robotHeadingSupplier, DoubleSupplier yawRateSupplier, BooleanSupplier intaking){
+    IndexerSubsystem indexer, TurretSubsystem turret, HoodSubsystem hood, Supplier<Optional<Translation2d>> aimVectorSupplier, Supplier<Optional<Rotation2d>> robotHeadingSupplier, DoubleSupplier yawRateSupplier, BooleanSupplier intaking, LightSubsystem lightSubsystem){
 
-        turretAim aim = new turretAim(turret, aimVectorSupplier, robotHeadingSupplier, yawRateSupplier);
+        turretAim aim = new turretAim(turret, aimVectorSupplier, robotHeadingSupplier, yawRateSupplier, lightSubsystem);
 
         addRequirements(getRequirements());
         this.intake = intake;
