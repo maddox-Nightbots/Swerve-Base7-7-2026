@@ -250,10 +250,4 @@ public class IntakeSubsystem extends SubsystemBase {
             intaking = true;
         });
     }
-
-    public Command PrepIntake(){
-        return this.run(() -> {
-            this.setIntakePosition(IntakeConstants.IntakeDownPosition/3);
-        }).until(() -> MathUtil.isNear(IntakeConstants.IntakeDownPosition/3, getIntakePosition() , 0.01));
-    }
 }

@@ -38,6 +38,9 @@ public class Robot extends TimedRobot {
     if (m_autonomousCommand != null) {
       m_autonomousCommand.cancel();
     }
+    // The auto ShootSequence sets shooting = true and never clears it, which would leave
+    // teleop driving at the slow shooting speed.
+    RobotContainer.shooting = false;
   }
 
   // Other periodic methods remain empty or unchanged as per standard WPILib templates

@@ -87,8 +87,10 @@ public class SwerveSubsystem extends SubsystemBase {
           new PPHolonomicDriveController(
               // PIDConstants: These control how hard the robot fights to stay on a path.
               // If the robot wobbles, these numbers are too high. If it's lazy, they are too low.
-              new PIDConstants(0.001545, 0.0, 0.0), // Translation (Moving X and Y)
-              new PIDConstants(0.0014645, 0.0, 0.0)  // Rotation (Turning)
+              // Starting point (PathPlanner/YAGSL example values). If autos oscillate, lower them;
+              // if the robot drifts off the path, raise them.
+              new PIDConstants(5.0, 0.0, 0.0), // Translation (Moving X and Y): m/s per meter of error
+              new PIDConstants(5.0, 0.0, 0.0)  // Rotation (Turning): rad/s per radian of error
           ),
           config,
 () -> {

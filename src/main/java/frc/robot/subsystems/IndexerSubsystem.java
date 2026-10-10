@@ -105,7 +105,9 @@ public class IndexerSubsystem extends SubsystemBase {
     }
 
     public Command unstuckBalls(){
-        return this.runOnce(() -> {
+        // run(), not runOnce(): runOnce ends after one loop and the default Stop takes over,
+        // so the reverse lasted ~20 ms. Callers end this with withTimeout().
+        return this.run(() -> {
             this.setIndexerVelocityRPM(2000);
         });
     }

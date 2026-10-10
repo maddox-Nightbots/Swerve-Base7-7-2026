@@ -1,15 +1,12 @@
 package frc.robot.commands;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.function.BooleanSupplier;
 import java.util.function.DoubleSupplier;
 import java.util.function.Supplier;
 
 import org.photonvision.targeting.PhotonTrackedTarget;
 
-import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.FunctionalCommand;
@@ -18,16 +15,14 @@ import edu.wpi.first.wpilibj2.command.WaitCommand;
 import frc.robot.subsystems.HoodSubsystem;
 import frc.robot.subsystems.IndexerSubsystem;
 import frc.robot.subsystems.IntakeSubsystem;
-import frc.robot.subsystems.LightSubsystem;
 import frc.robot.subsystems.ShooterSubsystem;
-import frc.robot.subsystems.TurretSubsystem;
 /**
  * Everything needed to score, all running at once while the trigger is held:
- * aim the turret, spin the shooter / set the hood, jiggle the intake to push balls in,
- * and feed the indexer once we are aimed and the shooter is up to speed (then keep feeding
- * through small aim/speed wobbles until the trigger is released).
+ * spin the shooter / set the hood, jiggle the intake to push balls in, and feed the indexer
+ * once the turret (aimed by its default command, turretAim) is on target and the shooter is up
+ * to speed (then keep feeding through small aim/speed wobbles until the trigger is released).
  *
- * <p>This is parallel, not sequential: turretAim and PrepareShot never finish on their own,
+ * <p>This is parallel, not sequential: PrepareShot never finishes on its own,
  * so in a sequence nothing after the first step would ever run. Each piece uses a different
  * subsystem, so they can all run together. Releasing the trigger ends all of them.
  */
@@ -35,15 +30,18 @@ public class ShootSequence extends ParallelCommandGroup{
 
     private final double kFeedRPM = -4000;
 
+    /**
+     * @param aim the turret's shared aim command (RobotContainer.m_turretAim). It is NOT added to
+     *     this group: it is the turret's default command, and WPILib forbids a default command from
+     *     also being in a group. It keeps aiming on its own (nothing here requires the turret);
+     *     this group only reads whether it is on target.
+     */
     public ShootSequence(ShooterSubsystem shooter, HoodSubsystem hood, IntakeSubsystem intake,
-    IndexerSubsystem indexer, Supplier<List<PhotonTrackedTarget>> targetSupplier, TurretSubsystem turret, Supplier<Optional<Translation2d>> aimVectorSupplier, Supplier<Optional<Rotation2d>> robotHeadingSupplier, DoubleSupplier yawRateSupplier, BooleanSupplier intaking, DoubleSupplier hubDistance, LightSubsystem lightSubsystem){
+    IndexerSubsystem indexer, Supplier<List<PhotonTrackedTarget>> targetSupplier, turretAim aim, BooleanSupplier intaking, DoubleSupplier hubDistance){
 
         PrepareShot prepareShot = new PrepareShot(shooter, hood, targetSupplier, hubDistance);
-        LightSubsystem m_LightSubsystem = lightSubsystem;
-        turretAim aim = new turretAim(turret, aimVectorSupplier, robotHeadingSupplier, yawRateSupplier, m_LightSubsystem);
 
         addCommands(
-            aim,
             prepareShot,
             intake.IntakeUpDown().repeatedly().until(intaking).withInterruptBehavior(Command.InterruptionBehavior.kCancelSelf).asProxy().beforeStarting(new WaitCommand(5)),
             // Strict to START feeding (aimed within 5 deg, hub seen in the last second, shooter

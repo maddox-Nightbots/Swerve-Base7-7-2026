@@ -29,7 +29,7 @@ import swervelib.SwerveInputStream;
  * This class ties subsystems, controllers, and button bindings together.
  */
 public class RobotContainer {
-  private static final double RIGHT_TRIGGER_THRESHOLD = 0.5;
+  private static final double TRIGGER_THRESHOLD = 0.5;
   public static Boolean shooting = false;
 
   public double targetHoodPosition = 0.0;
@@ -80,18 +80,13 @@ public class RobotContainer {
             m_HoodSubsystem, 
             m_IntakeSubsystem, 
             m_IndexerSubsystem, 
-            () -> m_VisionSubsystem.getTurretCameraTargets(), 
-            m_TurretSubsystem, 
-            m_VisionSubsystem::getAimVector, 
-            () -> m_VisionSubsystem.getRobotHeadingFromTurretCamera(), 
-            m_VisionSubsystem::getYawRateRadPerSec, 
-            () -> m_driverController.getLeftTriggerAxis() > 0.5, 
-            m_VisionSubsystem::getLiveDistanceToHub, // 🟢 CHANGED: Feeds updating distance continuously!
-            m_LightSubsystem
-        ), 
+            () -> m_VisionSubsystem.getTurretCameraTargets(),
+            m_turretAim,
+            () -> m_driverController.getLeftTriggerAxis() > 0.5,
+            m_VisionSubsystem::getLiveDistanceToHub // 🟢 CHANGED: Feeds updating distance continuously!
+        ),
         Commands.run(() -> shooting = true)
     ));
-    m_driverController.rightTrigger(RIGHT_TRIGGER_THRESHOLD).onFalse(m_IndexerSubsystem.unstuckBalls().withTimeout(1));
     com.pathplanner.lib.auto.NamedCommands.registerCommand("Intaking", m_IntakeSubsystem.Intaking());
     
 autoChooser = AutoBuilder.buildAutoChooserWithOptionsModifier(stream -> 
@@ -195,42 +190,35 @@ autoChooser = AutoBuilder.buildAutoChooserWithOptionsModifier(stream ->
     // Set hood postion for test
     m_driverController.b().onTrue(Commands.runOnce(() -> m_HoodSubsystem.setPosition(SmartDashboard.getNumber("Target Hood Position", targetHoodPosition)), m_HoodSubsystem));
 
-    //set intake position at to test for auto start.
-    m_driverController.leftStick().onTrue(m_IntakeSubsystem.PrepIntake());
-
     // RIGHT TRIGGER: Spin the shooter while held for scoring. Releasing stops the shooter.
-    m_driverController.rightTrigger(RIGHT_TRIGGER_THRESHOLD).whileTrue(
+    m_driverController.rightTrigger(TRIGGER_THRESHOLD).whileTrue(
     Commands.parallel(
         new ShootSequence(
             m_ShooterSubsystem, 
             m_HoodSubsystem, 
             m_IntakeSubsystem, 
             m_IndexerSubsystem, 
-            () -> m_VisionSubsystem.getTurretCameraTargets(), 
-            m_TurretSubsystem, 
-            m_VisionSubsystem::getAimVector, 
-            () -> m_VisionSubsystem.getRobotHeadingFromTurretCamera(), 
-            m_VisionSubsystem::getYawRateRadPerSec, 
-            () -> m_driverController.getLeftTriggerAxis() > 0.5, 
-            m_VisionSubsystem::getLiveDistanceToHub, // 🟢 CHANGED: Feeds updating distance continuously!
-            m_LightSubsystem
-        ), 
+            () -> m_VisionSubsystem.getTurretCameraTargets(),
+            m_turretAim,
+            () -> m_driverController.getLeftTriggerAxis() > 0.5,
+            m_VisionSubsystem::getLiveDistanceToHub // 🟢 CHANGED: Feeds updating distance continuously!
+        ),
         Commands.run(() -> shooting = true)
     )
 );
-m_driverController.rightTrigger(RIGHT_TRIGGER_THRESHOLD).onFalse(Commands.parallel(m_IndexerSubsystem.unstuckBalls().withTimeout(3), Commands.runOnce(() -> shooting = false)));
+m_driverController.rightTrigger(TRIGGER_THRESHOLD).onFalse(Commands.parallel(m_IndexerSubsystem.unstuckBalls().withTimeout(3), Commands.runOnce(() -> shooting = false)));
 
     // RIGHT BUMPER: Spin the shooter while held for passing. Releasing stops the shooter.
     // TEMP DISABLED: SpinShooter currently requires the indexer (for testing), which conflicts with
     // indexer.SpinIndexer() inside PassSequence's parallel group and crashes the robot on boot.
     // To re-enable: remove the indexer requirement from SpinShooter, then uncomment the two lines below.
-    //m_driverController.rightBumper().whileTrue(new PassSequence(m_ShooterSubsystem, m_IntakeSubsystem, m_IndexerSubsystem, m_TurretSubsystem, m_HoodSubsystem, m_VisionSubsystem::getAimVector, () -> m_VisionSubsystem.getRobotHeadingFromTurretCamera(), m_VisionSubsystem::getYawRateRadPerSec, () -> m_driverController.getLeftTriggerAxis() > 0.5));
-    m_driverController.rightBumper().onFalse(m_IndexerSubsystem.unstuckBalls().withTimeout(2));
+    //m_driverController.rightBumper().whileTrue(new PassSequence(m_ShooterSubsystem, m_IntakeSubsystem, m_IndexerSubsystem, m_HoodSubsystem, m_turretAim, () -> m_driverController.getLeftTriggerAxis() > 0.5));
+    //m_driverController.rightBumper().onFalse(m_IndexerSubsystem.unstuckBalls().withTimeout(2));
     m_driverController.povRight().whileTrue(m_spinShooterCommand);
 
     // LEFT TRIGGER: Lower intake and spin it keep trying to set intake position while intaking because balls can move it.
-    m_driverController.leftTrigger(RIGHT_TRIGGER_THRESHOLD).whileTrue(m_IntakeSubsystem.Intaking());
-    m_driverController.leftTrigger(RIGHT_TRIGGER_THRESHOLD).whileFalse(Commands.run(() -> m_IntakeSubsystem.intaking=false));
+    m_driverController.leftTrigger(TRIGGER_THRESHOLD).whileTrue(m_IntakeSubsystem.Intaking());
+    m_driverController.leftTrigger(TRIGGER_THRESHOLD).whileFalse(Commands.run(() -> m_IntakeSubsystem.intaking=false));
     
     m_driverController.leftBumper().whileTrue(Commands.run(() -> {
                                                                   m_IntakeSubsystem.setVelocityRPM(2000);
@@ -246,8 +234,8 @@ m_driverController.rightTrigger(RIGHT_TRIGGER_THRESHOLD).onFalse(Commands.parall
   public void updateDashboard() {
     double rightTriggerAxis = m_driverController.getRightTriggerAxis();
     SmartDashboard.putNumber("Shooter/Right Trigger Axis", rightTriggerAxis);
-    SmartDashboard.putNumber("Shooter/Right Trigger Threshold", RIGHT_TRIGGER_THRESHOLD);
-    SmartDashboard.putBoolean("Shooter/Right Trigger Pressed", rightTriggerAxis > RIGHT_TRIGGER_THRESHOLD);
+    SmartDashboard.putNumber("Shooter/Right Trigger Threshold", TRIGGER_THRESHOLD);
+    SmartDashboard.putBoolean("Shooter/Right Trigger Pressed", rightTriggerAxis > TRIGGER_THRESHOLD);
     SmartDashboard.putBoolean("Shooter/Command Scheduled", m_spinShooterCommand.isScheduled());
 
     // Turret position (from the turret camera) as a "Turret" object on the "Field" widget.

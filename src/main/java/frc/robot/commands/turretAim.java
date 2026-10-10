@@ -4,6 +4,7 @@ import java.util.Optional;
 import java.util.function.DoubleSupplier;
 import java.util.function.Supplier;
 
+import edu.wpi.first.math.filter.Debouncer;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
@@ -88,16 +89,21 @@ public class turretAim extends Command {
         // hub CW relative to the robot, so aim where it will be kTurretYawLeadSeconds from now.
         Translation2d toHub = maybeToHub.get();
         Rotation2d yawLead = Rotation2d.fromRadians(yawRateSupplier.getAsDouble() * ShootOnMoveConstants.kTurretYawLeadSeconds);
-        Rotation2d hubHeading = toHub.getAngle().minus(maybeRobotHeading.get()).minus(yawLead);
+        Rotation2d hubHeadingNow = toHub.getAngle().minus(maybeRobotHeading.get());
+        Rotation2d hubHeading = hubHeadingNow.minus(yawLead);
 
         // No wrap-around: a hub behind the travel range just holds at the nearer limit.
         double targetAngle = turret.angleForHeading(hubHeading);
         turret.setAngle(targetAngle);
 
-        // Error between where the turret is told to go and the hub (non-zero only when the
-        // hub is out of range), and between where the turret is and where it's told to go.
-        double reachErrorDeg = TurretSubsystem.headingForAngle(targetAngle).minus(hubHeading).getDegrees();
-        double trackErrorDeg = (targetAngle - turret.getAngle()) * 360.0;
+        // Aim error is judged against where the hub is NOW, not the led target. The lead only
+        // makes up for the turret lagging behind a spinning robot, so a turret tracking well sits
+        // on the real hub, about one lead behind the led target. Judging against the led target
+        // counted the lead as error and blocked feeding whenever the robot turned (~5 deg at 60 deg/s).
+        // reachError: non-zero only when the hub is out of range. trackError: turret vs real hub.
+        double hubAngleNow = turret.angleForHeading(hubHeadingNow);
+        double reachErrorDeg = TurretSubsystem.headingForAngle(hubAngleNow).minus(hubHeadingNow).getDegrees();
+        double trackErrorDeg = (hubAngleNow - turret.getAngle()) * 360.0;
         aimErrorDeg = Math.max(Math.abs(reachErrorDeg), Math.abs(trackErrorDeg));
         aimed = aimErrorDeg <= TurretConstants.kAimToleranceDegrees;
 
@@ -108,12 +114,21 @@ public class turretAim extends Command {
         SmartDashboard.putNumber("TurretDiag/Aim Tracking Error (deg)", trackErrorDeg);
         SmartDashboard.putBoolean("TurretDiag/Aimed", aimed);
 
-        if (aimed){
-            m_lightSubsystem.lightOn(); 
+        // Light is more lenient than "aimed" so a flickering aim doesn't flicker the driver's
+        // signal: turns on at kAimToleranceDegrees, stays on until the error passes
+        // kLightKeepOnDegrees, and only turns off after being bad for kLightOffDelaySeconds.
+        boolean lightGood = aimErrorDeg <= (m_lightSubsystem.lightState() ? kLightKeepOnDegrees : TurretConstants.kAimToleranceDegrees);
+        if (lightOffDebouncer.calculate(lightGood)){
+            m_lightSubsystem.lightOn();
         } else {
             m_lightSubsystem.lightOff();
         }
     }
+
+    // Light-only leniency (does not change when the indexer feeds).
+    private static final double kLightKeepOnDegrees = 10.0;
+    private static final double kLightOffDelaySeconds = 0.3;
+    private final Debouncer lightOffDebouncer = new Debouncer(kLightOffDelaySeconds, Debouncer.DebounceType.kFalling);
 
     @Override
     public void end(boolean interrupted) {
