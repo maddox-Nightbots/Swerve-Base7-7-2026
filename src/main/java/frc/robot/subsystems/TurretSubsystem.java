@@ -16,6 +16,7 @@ import edu.wpi.first.wpilibj.Alert;
 import edu.wpi.first.wpilibj.Alert.AlertType;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants.TurretConstants;
@@ -169,6 +170,25 @@ public class TurretSubsystem extends SubsystemBase {
         return angle;
     }
 
+    /**
+     * Lock the turret where it is right now, relative to the robot, and ignore the cameras.
+     * Toggled by the driver's right bumper. While this runs it replaces turretAim (the default
+     * command), so a bad or missing vision fix can't swing the turret away from the tags.
+     * Closed-loop position hold, so it resists being pushed. Toggle again to resume aiming.
+     */
+    public Command holdCommand() {
+        return startRun(
+            () -> {
+                setAngle(getAngle());
+                locked = true;
+            },
+            () -> {})
+            .finallyDo(() -> locked = false)
+            .withName("Turret Hold");
+    }
+
+    private boolean locked = false;
+
     /** Cut the output. Note this drops closed-loop hold, so the turret coasts. */
     public void stop() {
         turnMotor.set(0.0);
@@ -198,6 +218,7 @@ public class TurretSubsystem extends SubsystemBase {
         // Numeric readouts live under "TurretDiag/" so they stay clear of the
         // "SmartDashboard/Turret" subtable that the Alert group owns.
         SmartDashboard.putBoolean("TurretDiag/At Limit", atLimit);
+        SmartDashboard.putBoolean("TurretDiag/Locked", locked);
         SmartDashboard.putNumber("TurretDiag/Current Angle (deg)", getAngle() * 360.0);
         SmartDashboard.putNumber("TurretDiag/Commanded Angle (deg)", lastCommandedRotations * 360.0);
         SmartDashboard.putNumber("TurretDiag/Min Angle (deg)", getMinAngle() * 360.0);

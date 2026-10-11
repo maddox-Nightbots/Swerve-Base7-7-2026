@@ -216,6 +216,12 @@ m_driverController.rightTrigger(TRIGGER_THRESHOLD).onFalse(Commands.parallel(m_I
     //m_driverController.rightBumper().onFalse(m_IndexerSubsystem.unstuckBalls().withTimeout(2));
     m_driverController.povRight().whileTrue(m_spinShooterCommand);
 
+    // RIGHT BUMPER (toggle): lock the turret where it is, relative to the robot, and stop
+    // aiming. For when both cameras are out and turretAim would chase a stale fix away from
+    // the tags. Press again to go back to auto aim. Note: the shoot sequence's feed gate
+    // still needs turretAim to report "aimed", so the indexer will not feed while locked.
+    m_driverController.rightBumper().toggleOnTrue(m_TurretSubsystem.holdCommand());
+
     // LEFT TRIGGER: Lower intake and spin it keep trying to set intake position while intaking because balls can move it.
     m_driverController.leftTrigger(TRIGGER_THRESHOLD).whileTrue(m_IntakeSubsystem.Intaking());
     m_driverController.leftTrigger(TRIGGER_THRESHOLD).whileFalse(Commands.run(() -> m_IntakeSubsystem.intaking=false));

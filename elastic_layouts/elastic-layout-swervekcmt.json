@@ -87,7 +87,7 @@
             "title": "Turret Heading",
             "x": 1408.0,
             "y": 384.0,
-            "width": 64.0,
+            "width": 128.0,
             "height": 128.0,
             "type": "Text Display",
             "properties": {
@@ -127,9 +127,9 @@
           },
           {
             "title": "At Target RPM",
-            "x": 1024.0,
+            "x": 928.0,
             "y": 384.0,
-            "width": 96.0,
+            "width": 192.0,
             "height": 128.0,
             "type": "Boolean Box",
             "properties": {
@@ -157,9 +157,9 @@
           },
           {
             "title": "Aimed",
-            "x": 864.0,
+            "x": 544.0,
             "y": 384.0,
-            "width": 64.0,
+            "width": 288.0,
             "height": 128.0,
             "type": "Boolean Box",
             "properties": {
@@ -174,7 +174,7 @@
           },
           {
             "title": "Commanded Angle (deg)",
-            "x": 928.0,
+            "x": 832.0,
             "y": 384.0,
             "width": 96.0,
             "height": 128.0,
@@ -202,8 +202,8 @@
           },
           {
             "title": "Lead Gain",
-            "x": 640.0,
-            "y": 384.0,
+            "x": 1408.0,
+            "y": 544.0,
             "width": 96.0,
             "height": 128.0,
             "type": "Text Display",
@@ -216,8 +216,8 @@
           },
           {
             "title": "TOF at 0.76 m (s)",
-            "x": 512.0,
-            "y": 384.0,
+            "x": 640.0,
+            "y": 672.0,
             "width": 128.0,
             "height": 128.0,
             "type": "Text Display",
@@ -230,8 +230,8 @@
           },
           {
             "title": "TOF at 1.80 m (s)",
-            "x": 384.0,
-            "y": 384.0,
+            "x": 768.0,
+            "y": 672.0,
             "width": 128.0,
             "height": 128.0,
             "type": "Text Display",
@@ -244,8 +244,8 @@
           },
           {
             "title": "TOF at 2.74 m (s)",
-            "x": 256.0,
-            "y": 384.0,
+            "x": 896.0,
+            "y": 672.0,
             "width": 128.0,
             "height": 128.0,
             "type": "Text Display",
@@ -258,8 +258,8 @@
           },
           {
             "title": "TOF at 3.34 m (s)",
-            "x": 128.0,
-            "y": 384.0,
+            "x": 1024.0,
+            "y": 672.0,
             "width": 128.0,
             "height": 128.0,
             "type": "Text Display",
@@ -272,8 +272,8 @@
           },
           {
             "title": "TOF at 4.00 m (s)",
-            "x": 0.0,
-            "y": 384.0,
+            "x": 1152.0,
+            "y": 672.0,
             "width": 128.0,
             "height": 128.0,
             "type": "Text Display",
@@ -303,8 +303,8 @@
           },
           {
             "title": "RPM Offset",
-            "x": 736.0,
-            "y": 384.0,
+            "x": 960.0,
+            "y": 544.0,
             "width": 128.0,
             "height": 128.0,
             "type": "Text Display",
@@ -386,6 +386,91 @@
               "period": 0.06,
               "data_type": "double",
               "show_submit_button": false
+            }
+          },
+          {
+            "title": "Front Cam Connected",
+            "x": 0.0,
+            "y": 384.0,
+            "width": 192.0,
+            "height": 128.0,
+            "type": "Boolean Box",
+            "properties": {
+              "topic": "/SmartDashboard/Vision/Front Cam Connected",
+              "period": 0.06,
+              "data_type": "boolean",
+              "true_color": 4283215696,
+              "false_color": 4294198070,
+              "true_icon": "None",
+              "false_icon": "None"
+            }
+          },
+          {
+            "title": "Front Cam OK",
+            "x": 128.0,
+            "y": 672.0,
+            "width": 128.0,
+            "height": 128.0,
+            "type": "Boolean Box",
+            "properties": {
+              "topic": "/SmartDashboard/Vision/Front Cam OK",
+              "period": 0.06,
+              "data_type": "boolean",
+              "true_color": 4283215696,
+              "false_color": 4294198070,
+              "true_icon": "None",
+              "false_icon": "None"
+            }
+          },
+          {
+            "title": "Turret Cam Connected",
+            "x": 192.0,
+            "y": 384.0,
+            "width": 192.0,
+            "height": 128.0,
+            "type": "Boolean Box",
+            "properties": {
+              "topic": "/SmartDashboard/Vision/Turret Cam Connected",
+              "period": 0.06,
+              "data_type": "boolean",
+              "true_color": 4283215696,
+              "false_color": 4294198070,
+              "true_icon": "None",
+              "false_icon": "None"
+            }
+          },
+          {
+            "title": "Turret Cam OK",
+            "x": 384.0,
+            "y": 672.0,
+            "width": 128.0,
+            "height": 128.0,
+            "type": "Boolean Box",
+            "properties": {
+              "topic": "/SmartDashboard/Vision/Turret Cam OK",
+              "period": 0.06,
+              "data_type": "boolean",
+              "true_color": 4283215696,
+              "false_color": 4294198070,
+              "true_icon": "None",
+              "false_icon": "None"
+            }
+          },
+          {
+            "title": "Turret LOCKED",
+            "x": 384.0,
+            "y": 384.0,
+            "width": 160.0,
+            "height": 128.0,
+            "type": "Boolean Box",
+            "properties": {
+              "topic": "/SmartDashboard/TurretDiag/Locked",
+              "period": 0.06,
+              "data_type": "boolean",
+              "true_color": 4283215696,
+              "false_color": 4294198070,
+              "true_icon": "None",
+              "false_icon": "None"
             }
           }
         ]

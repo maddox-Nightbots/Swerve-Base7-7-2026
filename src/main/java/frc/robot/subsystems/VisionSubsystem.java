@@ -145,6 +145,9 @@ public class VisionSubsystem extends SubsystemBase {
     double lastCandidateTrackError = 0.0;
     // How many cross-check votes this camera has lost.
     int crossCheckLosses = 0;
+    // FPGA time this camera last produced a fix that was actually applied (passed every
+    // filter and the cross-check). -1 until the first. Drives the "OK" dashboard boolean.
+    double lastAcceptedTimestamp = -1.0;
 
     CameraUnit(String name, PhotonCamera camera, PhotonPoseEstimator estimator, boolean onTurret) {
       this.name = name;
@@ -248,8 +251,10 @@ public class VisionSubsystem extends SubsystemBase {
       Optional<Boolean> verdict = crossCheck(candidate);
       if (verdict.isPresent()) {
         candidate.onAccept().run();
-        applyTurretFix(candidate.pose().getTranslation(), candidate.pose().getRotation(),
-            candidate.timestamp(), candidate.statusKey(), verdict.get());
+        if (applyTurretFix(candidate.pose().getTranslation(), candidate.pose().getRotation(),
+            candidate.timestamp(), candidate.statusKey(), verdict.get())) {
+          candidate.unit().lastAcceptedTimestamp = now;
+        }
       }
     }
 
@@ -267,9 +272,21 @@ public class VisionSubsystem extends SubsystemBase {
     SmartDashboard.putNumber("Vision/Turret Fix Age (s)", turretFixPosition != null ? now - lastTurretFixTimestamp : -1.0);
     for (CameraUnit unit : cameras) {
       SmartDashboard.putNumber("Vision/CrossCheck/" + unit.name + " Losses", unit.crossCheckLosses);
+      // Elastic status lights. "Connected" = PhotonVision is talking to us on this camera.
+      // "OK" = connected AND a fix from it was applied within kCameraOkSeconds, i.e. it is
+      // actually seeing tags and they are passing the filters right now.
+      boolean connected = unit.camera.isConnected();
+      boolean ok = connected && unit.lastAcceptedTimestamp >= 0.0
+          && now - unit.lastAcceptedTimestamp <= kCameraOkSeconds;
+      String label = unit.onTurret ? "Turret Cam" : "Front Cam";
+      SmartDashboard.putBoolean("Vision/" + label + " Connected", connected);
+      SmartDashboard.putBoolean("Vision/" + label + " OK", ok);
     }
     publishShootOnMove();
   }
+
+  // A camera counts as "OK" on the dashboard if one of its fixes was applied this recently.
+  private static final double kCameraOkSeconds = 1.0;
 
   /** Preferences key for the flight time at one table distance. */
   private static String timeOfFlightKey(double distanceMeters) {
@@ -550,14 +567,16 @@ public class VisionSubsystem extends SubsystemBase {
   /**
    * Take one camera's turret position and robot field heading (from either camera) as the new
    * turret fix, or blend it in, or reject it as a heading jump.
+   *
+   * @return true if the fix was applied (reset or blended), false if skipped or rejected
    */
-  private void applyTurretFix(Translation2d turretPosition, Rotation2d cameraHeading, double timestamp, String statusKey,
+  private boolean applyTurretFix(Translation2d turretPosition, Rotation2d cameraHeading, double timestamp, String statusKey,
       boolean forceReset) {
     // The two cameras' frames can arrive out of order. An older frame than the current fix
     // would rewind the fix time, so skip it.
     if (turretFixPosition != null && timestamp < lastTurretFixTimestamp) {
       SmartDashboard.putString(statusKey, "skipped: older than current turret fix");
-      return;
+      return false;
     }
     Rotation2d rawYawAtFrame = rawYawHistory.getSample(timestamp).orElse(rawYaw());
 
@@ -579,7 +598,7 @@ public class VisionSubsystem extends SubsystemBase {
         // A single tag's mirror-flip or a noisy solve. Keep the tracked fix.
         turretFramesRejectedInARow++;
         SmartDashboard.putString(statusKey, String.format("rejected: heading jump %.0f deg", headingJumpDeg));
-        return;
+        return false;
       }
       // Agrees with the gyro: nudge toward the camera instead of snapping to it.
       Translation2d trackedPosition = getTurretFieldPosition().get();
@@ -591,6 +610,7 @@ public class VisionSubsystem extends SubsystemBase {
     rawYawAtFix = rawYawAtFrame;
     travelledSinceFix = Translation2d.kZero;
     lastTurretFixTimestamp = timestamp;
+    return true;
   }
 
   /**
