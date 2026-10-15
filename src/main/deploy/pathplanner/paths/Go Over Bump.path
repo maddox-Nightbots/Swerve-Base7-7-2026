@@ -1,0 +1,54 @@
+{
+  "version": "2025.0",
+  "waypoints": [
+    {
+      "anchor": {
+        "x": 3.663837375178317,
+        "y": 5.658801711840229
+      },
+      "prevControl": null,
+      "nextControl": {
+        "x": 5.658144934381427,
+        "y": 5.658801711840229
+      },
+      "isLocked": false,
+      "linkedName": null
+    },
+    {
+      "anchor": {
+        "x": 6.199814550641939,
+        "y": 5.658801711840229
+      },
+      "prevControl": {
+        "x": 4.4530476574439355,
+        "y": 5.658801711840229
+      },
+      "nextControl": null,
+      "isLocked": false,
+      "linkedName": "Go Over Bump End"
+    }
+  ],
+  "rotationTargets": [],
+  "constraintZones": [],
+  "pointTowardsZones": [],
+  "eventMarkers": [],
+  "globalConstraints": {
+    "maxVelocity": 4.5,
+    "maxAcceleration": 9.2,
+    "maxAngularVelocity": 540.0,
+    "maxAngularAcceleration": 5822.0,
+    "nominalVoltage": 12.0,
+    "unlimited": false
+  },
+  "goalEndState": {
+    "velocity": 0,
+    "rotation": -40.763605200941164
+  },
+  "reversed": false,
+  "folder": null,
+  "idealStartingState": {
+    "velocity": 0,
+    "rotation": -59.03624346792652
+  },
+  "useDefaultConstraints": true
+}

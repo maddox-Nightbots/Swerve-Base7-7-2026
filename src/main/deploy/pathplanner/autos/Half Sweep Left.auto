@@ -5,9 +5,27 @@
     "data": {
       "commands": [
         {
+          "type": "named",
+          "data": {
+            "name": "VisionAlign"
+          }
+        },
+        {
           "type": "path",
           "data": {
-            "pathName": "Go to fuel Left"
+            "pathName": "Go Over Bump"
+          }
+        },
+        {
+          "type": "named",
+          "data": {
+            "name": "VisionAlign"
+          }
+        },
+        {
+          "type": "path",
+          "data": {
+            "pathName": "Go To Fuel Left"
           }
         },
         {

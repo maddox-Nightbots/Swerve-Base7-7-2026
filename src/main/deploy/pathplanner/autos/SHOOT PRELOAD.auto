@@ -9,6 +9,12 @@
           "data": {
             "pathName": "None Auto"
           }
+        },
+        {
+          "type": "named",
+          "data": {
+            "name": "ShootSequence"
+          }
         }
       ]
     }

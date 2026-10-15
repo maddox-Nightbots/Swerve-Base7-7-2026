@@ -222,7 +222,7 @@ public final class Constants {
 
     // TEMPORARY: set false to skip the intake roller Kraken (TalonFX 56) entirely while it
     // isn't answering on CAN. The arm SparkMax still runs. Set back to true once it's fixed.
-    public static final boolean kEnableIntakeRollerTalon = true;
+    public static final boolean kEnableIntakeRollerTalon = false;
 
     public static final double gearRatio = 25*32 / 12;
     public static final double IntakeDownPosition = -0.25;

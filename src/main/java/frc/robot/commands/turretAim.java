@@ -78,7 +78,7 @@ public class turretAim extends Command {
         Optional<Rotation2d> maybeRobotHeading = robotHeadingSupplier.get();
         if (maybeToHub.isEmpty() || maybeRobotHeading.isEmpty()) {
             // No turret fix yet: hold still rather than aim at a guess.
-            turret.setAngle(turret.getAngle());
+            turret.setAngle(TurretConstants.kMinRotations/2);
             aimed = false;
             aimErrorDeg = Double.POSITIVE_INFINITY;
             SmartDashboard.putBoolean("TurretDiag/Aimed", false);
